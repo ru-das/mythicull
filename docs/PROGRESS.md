@@ -3,7 +3,7 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M4.3c Tune `dup_threshold`** (manual, real shoot)
+- Next task: **M5.1 Decisions** (M4.3c deferred: no burst photos available; see Known issues)
 - Last completed: M4.3b Best/All UI (headless Chromium with mocked API: 5 photos show 3 tiles in Best, badge 3, expand shows 5, All shows 5, no JS errors)
 - Blockers: none
 
@@ -47,6 +47,7 @@ fastapi, uvicorn, pydantic, sentence-transformers, torch, rawpy, Pillow, exifrea
 - M1.2: index jobs are locked per project (409); import has no lock and index is not blocked while import runs.
 - M3.2: checked in headless Chromium (cloud container) with 400 synthetic 3000x2000 JPEGs: import 49 s, 400 cells, 216 thumbs loaded after scrolling (lazy works), preview and arrow keys work, no JS errors. A real shoot has not been scrolled. Photo list is one unpaginated JSON array (fine to ~3000).
 - TestClient warns `httpx` with starlette is deprecated (upstream, harmless).
+- M4.3c open: `dup_threshold` stays at the untuned default 0.92. Needs a real shoot with bursts and EXIF; run `scripts/dup_sweep.py` on one (Colab/Kaggle) before the M8.1 demo, then record the value and tick M4.3c.
 <!-- Open problems to fix before the demo. -->
 
 ## Demo numbers (M8.1)
