@@ -9,7 +9,7 @@ from pathlib import Path
 import exifread
 from PIL import Image, ImageOps
 
-from mythicull import config, db, jobs
+from mythicull import config, db, grouping, jobs
 
 JPEG_EXTS = {".jpg", ".jpeg"}
 RAW_EXTS = {".cr2", ".cr3", ".nef", ".arw", ".raf", ".dng"}
@@ -272,3 +272,4 @@ def import_project(ctx: jobs.JobContext, project_id: str) -> None:
     summary = {"found": len(scan.items), "imported": imported, "already_present": already, "skipped": skipped}
     with conn:
         conn.execute("UPDATE projects SET last_import = ? WHERE id = ?", (json.dumps(summary), project_id))
+    grouping.regenerate_chapters(conn, project_id)

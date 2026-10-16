@@ -20,3 +20,10 @@ progress { width: 100%; }
 .overlay[hidden] { display: none; }
 .overlay img { max-width: 96vw; max-height: 92vh; object-fit: contain; }
 .caption { color: #bbb; padding: 6px; }
+.layout { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: start; }
+.sidebar { position: sticky; top: 8px; max-height: 95vh; overflow-y: auto; margin-top: 16px; }
+.sidebar label { display: block; margin-bottom: 8px; }
+.sidebar input { width: 4em; }
+.sidebar li.active { border-left: 3px solid #8ab4ff; padding-left: 6px; }
+button.link { background: none; border: 0; color: #8ab4ff; padding: 0; cursor: pointer; }
+main:has(.layout) { max-width: none; }

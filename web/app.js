@@ -7,6 +7,8 @@ async function api(path, opts) {
   return body;
 }
 
+const jsonBody = (method, data) => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+
 function el(tag, props = {}, ...kids) {
   const e = Object.assign(document.createElement(tag), props);
   e.append(...kids);
@@ -65,13 +67,50 @@ async function showProject(id, jobId) {
   const status = el("div");
   app.replaceChildren(head, status);
   const grid = el("div", { className: "grid" });
+  const side = el("nav", { className: "sidebar" });
+  let chapterId = null;
+  const loadGrid = async () =>
+    showGrid(grid, await api(`/projects/${id}/photos` + (chapterId ? `?chapter=${chapterId}` : "")));
+  const loadChapters = async (p) => {
+    const chapters = await api(`/projects/${id}/chapters`);
+    if (chapterId && !chapters.some((c) => c.id === chapterId)) chapterId = null;
+    const gap = el("input", { type: "number", min: 1, value: p.chapter_gap_minutes, title: "Minutes of quiet that start a new chapter" });
+    gap.onchange = async () => {
+      if (!(gap.value >= 1)) return;
+      const np = await api(`/projects/${id}`, jsonBody("PATCH", { chapter_gap_minutes: Number(gap.value) }));
+      await loadChapters(np);
+      await loadGrid();
+    };
+    const entry = (c) => {
+      const name = c ? c.title : "All photos";
+      const li = el("li", { className: (c ? c.id : null) === chapterId ? "active" : "" },
+        el("a", { href: "#", textContent: name, onclick: async (ev) => {
+          ev.preventDefault();
+          chapterId = c ? c.id : null;
+          await loadChapters(p);
+          await loadGrid();
+        } }));
+      if (c) {
+        li.append(el("div", { className: "muted", textContent: `${c.photo_count} photos` }),
+          el("button", { className: "link", textContent: "rename", onclick: async () => {
+            const t = prompt("Chapter title (blank resets)", c.user_title || c.title);
+            if (t === null) return;
+            await api(`/chapters/${c.id}`, jsonBody("PATCH", { user_title: t }));
+            await loadChapters(p);
+          } }));
+      }
+      return li;
+    };
+    side.replaceChildren(el("label", {}, "Gap (min) ", gap), el("ul", {}, entry(null), ...chapters.map(entry)));
+  };
   const render = async () => {
     const p = await api(`/projects/${id}`);
     head.textContent = p.name;
     status.replaceChildren(summaryView(p));
-    showGrid(grid, await api(`/projects/${id}/photos`));
+    await loadChapters(p);
+    await loadGrid();
   };
-  app.append(grid);
+  app.append(el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
   const bar = el("progress", { max: 1, value: 0 });
   const label = el("p", { className: "muted" });

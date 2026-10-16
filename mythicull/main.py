@@ -6,13 +6,13 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import json
 import uuid
 from datetime import datetime, timezone
 
-from mythicull import db, ingest, jobs
+from mythicull import db, grouping, ingest, jobs
 
 
 @asynccontextmanager
@@ -156,6 +156,75 @@ def get_project(project_id: str) -> ProjectOut:
     return _project_out(row)
 
 
+class ProjectPatch(BaseModel):
+    chapter_gap_minutes: int | None = Field(default=None, ge=1)
+
+
+@app.patch("/api/projects/{project_id}")
+def patch_project(project_id: str, body: ProjectPatch) -> ProjectOut:
+    conn = db.connect()
+    try:
+        if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+            raise HTTPException(404, "project not found")
+        if body.chapter_gap_minutes is not None:
+            with conn:
+                conn.execute("UPDATE projects SET chapter_gap_minutes = ? WHERE id = ?", (body.chapter_gap_minutes, project_id))
+            grouping.regenerate_chapters(conn, project_id)
+        return _project_out(conn.execute(_PROJECT_SQL + " WHERE p.id = ?", (project_id,)).fetchone())
+    finally:
+        conn.close()
+
+
+class ChapterOut(BaseModel):
+    id: str
+    position: int
+    start_time: str
+    end_time: str
+    auto_title: str
+    user_title: str | None
+    title: str
+    photo_count: int
+
+
+class ChapterPatch(BaseModel):
+    user_title: str | None = None
+
+
+_CHAPTER_SQL = (
+    "SELECT c.*, (SELECT COUNT(*) FROM photos WHERE chapter_id = c.id) AS photo_count FROM chapters c"
+)
+
+
+def _chapter_out(row: object) -> ChapterOut:
+    d = dict(row)  # type: ignore[call-overload]
+    return ChapterOut(**d, title=d["user_title"] or d["auto_title"])
+
+
+@app.get("/api/projects/{project_id}/chapters")
+def list_chapters(project_id: str) -> list[ChapterOut]:
+    conn = db.connect()
+    try:
+        if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+            raise HTTPException(404, "project not found")
+        return [_chapter_out(r) for r in conn.execute(_CHAPTER_SQL + " WHERE c.project_id = ? ORDER BY c.position", (project_id,))]
+    finally:
+        conn.close()
+
+
+@app.patch("/api/chapters/{chapter_id}")
+def rename_chapter(chapter_id: str, body: ChapterPatch) -> ChapterOut:
+    title = (body.user_title or "").strip() or None
+    conn = db.connect()
+    try:
+        with conn:
+            cur = conn.execute("UPDATE chapters SET user_title = ? WHERE id = ?", (title, chapter_id))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "chapter not found")
+        return _chapter_out(conn.execute(_CHAPTER_SQL + " WHERE c.id = ?", (chapter_id,)).fetchone())
+    finally:
+        conn.close()
+
+
 class PhotoOut(BaseModel):
     id: str
     filename: str
@@ -163,19 +232,21 @@ class PhotoOut(BaseModel):
     time_source: str | None
     width: int | None
     height: int | None
+    chapter_id: str | None
 
 
 @app.get("/api/projects/{project_id}/photos")
-def list_photos(project_id: str) -> list[PhotoOut]:
+def list_photos(project_id: str, chapter: str | None = None) -> list[PhotoOut]:
     conn = db.connect()
     try:
         if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
             raise HTTPException(404, "project not found")
-        rows = conn.execute(
-            "SELECT id, filename, capture_time, time_source, width, height FROM photos"
-            " WHERE project_id = ? ORDER BY capture_time, filename",
-            (project_id,),
-        ).fetchall()
+        sql = "SELECT id, filename, capture_time, time_source, width, height, chapter_id FROM photos WHERE project_id = ?"
+        args: list[str] = [project_id]
+        if chapter:
+            sql += " AND chapter_id = ?"
+            args.append(chapter)
+        rows = conn.execute(sql + " ORDER BY capture_time, filename", args).fetchall()
     finally:
         conn.close()
     return [PhotoOut(**dict(r)) for r in rows]

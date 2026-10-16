@@ -34,7 +34,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: a real 300+ photo shoot scrolls smoothly and opens previews.
 
 ## M4. Chapters, indexing and duplicates
-- [ ] **M4.1 Chapters.** Time-gap chapters, small-chapter merge, auto titles, rename, title carry-over on regenerate, chapter sidebar in the UI.
+- [x] **M4.1 Chapters.** Time-gap chapters, small-chapter merge, auto titles, rename, title carry-over on regenerate, chapter sidebar in the UI.
   Done when: the synthetic gap test passes and renamed titles survive a gap change.
 - [ ] **M4.2 Indexing job.** `embed.py` (lazy model load, fake embedder for tests), embeddings `.npy` store, sharpness in `quality.py`, `POST /projects/{id}/index`, resume and cancel, progress bar in the UI.
   Done when: tests with the fake embedder cover resume after interruption; a real index of the shoot completes.

@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M4.1 Chapters**
-- Last completed: M3.2 Grid and preview (headless Chromium check on 400 synthetic photos passed; real-shoot check still pending, see Known issues)
+- Next task: **M4.2 Indexing job**
+- Last completed: M4.1 Chapters (tests + headless Chromium check of sidebar, rename and gap change on 7 synthetic photos; M3.2 real-shoot check still pending, see Known issues)
 - Blockers: none
 
 ## Tuned values and model facts
@@ -29,6 +29,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: `POST /api/projects` {name, folder} -> {project, job_id}; 400 on blank name or missing folder. `ingest.import_project(ctx, project_id)` is the job body: only paths not already in `photos` are added, so existing rows, decisions and cached images are untouched. Migration 2 adds `projects.last_import` (JSON summary: found, imported, already_present, skipped[{path, reason}]), returned by project routes with `photo_count`. Unsupported/unreadable/no-preview files are skipped (not inserted) and also appear in job `failures`. Job `total` = supported photos found. Re-import has no endpoint yet (POST /projects always makes a new project); M3.1 may need one. Images live in `<data_dir>/projects/<id>/images/`.
 - 2026-10-16: UI is hash-routed (`#/` list, `#/p/<id>` project, `#/p/<id>/<job_id>` project with live import progress, polls `/api/jobs/<id>` every 500 ms). Reopening a project mid-import shows no progress (no job lookup by project yet) and no re-import button. Not browser-tested here: no playwright in the dev container.
 - 2026-10-16: `GET /api/projects/{id}/photos` returns all photos by capture_time (no chapter/view/filter params yet: added in M4.1/M4.3/M5.2). `GET /api/photos/{id}/thumb|preview` serve cached JPEGs with immutable cache headers. Grid uses native `loading=lazy` on `<img>`. Keys: Enter opens first photo, arrows move, Esc/Enter/Space close. Amber `!` badge when `time_source == mtime`.
+- 2026-10-16: chapters (`grouping.py`): gap strictly > `chapter_gap_minutes` splits; chapters under 3 photos merge into the nearer neighbour in time (tie: earlier), repeated until none are small. `regenerate_chapters` runs at the end of every import job and synchronously in `PATCH /api/projects/{id}` (timestamps only, fast). It deletes and recreates chapter rows, so chapter ids change on each regenerate. User titles carry to the new chapter with the largest photo overlap (each title and chapter used once; ties go to the first found). Blank rename reverts to the auto title. `GET /photos?chapter=<id>` filters. Sidebar shows title and photo count; kept count waits for M5.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
