@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M8.1 End-to-end run**
-- Last completed: M8.1 prep only (`scripts/demo_numbers.py <project_id>` prints the demo numbers; pytest green; M8.1 itself still open, needs a real shoot). Before that M7.3 Export UI (pytest green; headless Chromium with mocked API: both exports start, summary and skip list shown, copy body correct, no JS errors). Manual check still open: sidecars from a real shoot in Lightroom Classic or darktable. Before that M7.2 Copy export (pytest green, tests only). Before that M7.1 XMP export (pytest green; real Lightroom/darktable check is M7.3). Before that M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
+- Next task: **M8.2 README**
+- Last completed: M8.1 end-to-end run on Colab (354 public HDR+ frames, 4 chapters, 39 groups, index resumed after a kill, decisions survived a restart; review time not measured). Before that M7.3 Export UI (pytest green; headless Chromium with mocked API: both exports start, summary and skip list shown, copy body correct, no JS errors). Manual check still open: sidecars from a real shoot in Lightroom Classic or darktable. Before that M7.2 Copy export (pytest green, tests only). Before that M7.1 XMP export (pytest green; real Lightroom/darktable check is M7.3). Before that M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
 - Blockers: none
 
 ## Tuned values and model facts
@@ -62,8 +62,8 @@ Fill from `python scripts/demo_numbers.py <project_id>`; review time is timed by
 - Photos in: 354 (public HDR+ frames, EXIF re-timed into 4 clusters; not a private shoot)
 - Chapters: 4
 - Duplicate groups: 39
-- Photos kept: pending (cull not done yet; first run printed 0)
+- Photos kept: 29 (random clicks to exercise the UI, not a real cull)
 - Index time: 3.7 min for the final pass on a Colab T4; index was killed once mid-run and resumed, so the earlier partial pass is not included
-- Review time: pending
+- Review time: not measured (the cull was random clicking, so no honest figure; time a real cull of a real shoot before any demo claim)
 - Index resume after kill: yes, it continued (user report)
-- Still to do: keyboard cull, restart, confirm decisions survive, then final numbers
+- Decisions after server restart: all still present (user report, one restart)
