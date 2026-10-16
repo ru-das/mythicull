@@ -59,9 +59,11 @@ fastapi, uvicorn, pydantic, sentence-transformers, torch, rawpy, Pillow, exifrea
 
 ## Demo numbers (M8.1)
 Fill from `python scripts/demo_numbers.py <project_id>`; review time is timed by hand. Index time sums finished index jobs, so a resumed run counts only its last pass: add earlier passes by hand.
-- Photos in:
-- Chapters:
-- Duplicate groups:
-- Photos kept:
-- Index time:
-- Review time:
+- Photos in: 354 (public HDR+ frames, EXIF re-timed into 4 clusters; not a private shoot)
+- Chapters: 4
+- Duplicate groups: 39
+- Photos kept: pending (cull not done yet; first run printed 0)
+- Index time: 3.7 min for the final pass on a Colab T4; index was killed once mid-run and resumed, so the earlier partial pass is not included
+- Review time: pending
+- Index resume after kill: yes, it continued (user report)
+- Still to do: keyboard cull, restart, confirm decisions survive, then final numbers
