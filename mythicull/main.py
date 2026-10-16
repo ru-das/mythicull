@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -261,6 +262,8 @@ class PhotoOut(BaseModel):
     chapter_id: str | None
     group_id: str | None
     is_group_pick: bool
+    status: str | None
+    stars: int
 
 
 @app.get("/api/projects/{project_id}/photos")
@@ -269,15 +272,47 @@ def list_photos(project_id: str, chapter: str | None = None) -> list[PhotoOut]:
     try:
         if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
             raise HTTPException(404, "project not found")
-        sql = "SELECT id, filename, capture_time, time_source, width, height, chapter_id, group_id, is_group_pick FROM photos WHERE project_id = ?"
+        sql = (
+            "SELECT p.id, p.filename, p.capture_time, p.time_source, p.width, p.height, p.chapter_id, p.group_id, p.is_group_pick,"
+            " d.status, COALESCE(d.stars, 0) AS stars FROM photos p LEFT JOIN decisions d ON d.photo_id = p.id WHERE p.project_id = ?"
+        )
         args: list[str] = [project_id]
         if chapter:
-            sql += " AND chapter_id = ?"
+            sql += " AND p.chapter_id = ?"
             args.append(chapter)
-        rows = conn.execute(sql + " ORDER BY capture_time, filename", args).fetchall()
+        rows = conn.execute(sql + " ORDER BY p.capture_time, p.filename", args).fetchall()
     finally:
         conn.close()
     return [PhotoOut(**dict(r)) for r in rows]
+
+
+class DecisionIn(BaseModel):
+    status: Literal["keep", "reject"] | None = None
+    stars: int = Field(default=0, ge=0, le=5)
+
+
+class DecisionOut(BaseModel):
+    photo_id: str
+    status: str | None
+    stars: int
+
+
+@app.put("/api/photos/{photo_id}/decision")
+def put_decision(photo_id: str, body: DecisionIn) -> DecisionOut:
+    """Replaces the photo's whole decision (status and stars)."""
+    conn = db.connect()
+    try:
+        if conn.execute("SELECT 1 FROM photos WHERE id = ?", (photo_id,)).fetchone() is None:
+            raise HTTPException(404, "photo not found")
+        with conn:
+            conn.execute(
+                "INSERT INTO decisions (photo_id, status, stars, updated_at) VALUES (?, ?, ?, ?)"
+                " ON CONFLICT(photo_id) DO UPDATE SET status = excluded.status, stars = excluded.stars, updated_at = excluded.updated_at",
+                (photo_id, body.status, body.stars, datetime.now(timezone.utc).isoformat()),
+            )
+    finally:
+        conn.close()
+    return DecisionOut(photo_id=photo_id, status=body.status, stars=body.stars)
 
 
 def _photo_image(photo_id: str, column: str) -> FileResponse:

@@ -151,7 +151,8 @@ async function showProject(id, jobId) {
   const syncView = () => { viewBtn.textContent = view === "best" ? "View: Best" : "View: All"; };
   viewBtn.onclick = () => { view = view === "best" ? "all" : "best"; syncView(); renderGrid(); };
   syncView();
-  indexBox.append(" ", viewBtn);
+  const adv = el("input", { type: "checkbox", checked: autoAdvance, onchange: () => { autoAdvance = adv.checked; } });
+  indexBox.append(" ", viewBtn, " ", el("label", { title: "Move to the next photo after P or X" }, adv, " Auto-advance"));
   app.append(indexBox, el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
   const bar = el("progress", { max: 1, value: 0 });
@@ -174,13 +175,28 @@ async function showProject(id, jobId) {
 }
 
 let photos = [];
-let current = -1;
+let current = -1; // overlay index, -1 = closed
+let selected = 0; // grid selection
+let autoAdvance = true;
+let cells = [];
 const overlay = el("div", { className: "overlay", hidden: true });
 const bigImg = el("img");
 const caption = el("div", { className: "caption" });
 overlay.append(bigImg, caption);
 overlay.onclick = () => openPreview(-1);
 document.body.append(overlay);
+
+const stars = (n) => "★".repeat(n);
+
+function captionText(p) {
+  return `${p.filename}  ${p.capture_time || ""}${p.time_source === "mtime" ? "  (file time, not EXIF)" : ""}  ${p.status || ""} ${stars(p.stars)}`;
+}
+
+function select(i) {
+  selected = Math.min(Math.max(i, 0), photos.length - 1);
+  cells.forEach((c, k) => c.classList.toggle("sel", k === selected));
+  cells[selected]?.scrollIntoView({ block: "nearest" });
+}
 
 function openPreview(i) {
   if (i < 0 || i >= photos.length) {
@@ -189,10 +205,37 @@ function openPreview(i) {
     return;
   }
   current = i;
+  select(i);
   const p = photos[i];
   bigImg.src = `/api/photos/${p.id}/preview`;
-  caption.textContent = `${p.filename}  ${p.capture_time || ""}${p.time_source === "mtime" ? "  (file time, not EXIF)" : ""}`;
+  caption.textContent = captionText(p);
   overlay.hidden = false;
+}
+
+function paintCell(i) {
+  const p = photos[i];
+  const cell = cells[i];
+  cell.classList.toggle("keep", p.status === "keep");
+  cell.classList.toggle("reject", p.status === "reject");
+  cell.querySelector(".stars")?.remove();
+  if (p.stars) cell.append(el("span", { className: "stars", textContent: stars(p.stars) }));
+  if (current === i) caption.textContent = captionText(p);
+}
+
+async function decide(change) {
+  const p = photos[selected];
+  if (!p) return;
+  const next = { status: p.status, stars: p.stars, ...change };
+  const old = { status: p.status, stars: p.stars };
+  Object.assign(p, next); // optimistic; same object lives in allPhotos
+  paintCell(selected);
+  try {
+    await api(`/photos/${p.id}/decision`, jsonBody("PUT", next));
+  } catch (e) {
+    Object.assign(p, old);
+    paintCell(selected);
+    alert(`Could not save decision: ${e.message}`);
+  }
 }
 
 let allPhotos = [];
@@ -243,6 +286,9 @@ function renderGrid() {
     cell.onclick = () => openPreview(i);
     return cell;
   }));
+  cells = [...gridEl.children];
+  photos.forEach((_, i) => paintCell(i));
+  select(selected);
 }
 
 function showGrid(grid, list) {
@@ -252,14 +298,19 @@ function showGrid(grid, list) {
 }
 
 document.addEventListener("keydown", (e) => {
-  if (!photos.length || e.target.matches("input, textarea")) return;
-  if (current < 0) {
-    if (e.key === "Enter") openPreview(0);
-    return;
-  }
-  const next = { ArrowRight: current + 1, ArrowDown: current + 1, ArrowLeft: current - 1, ArrowUp: current - 1 }[e.key];
-  if (next !== undefined) openPreview(Math.min(Math.max(next, 0), photos.length - 1));
-  else if (e.key === "Escape" || e.key === "Enter" || e.key === " ") openPreview(-1);
+  if (!photos.length || e.target.matches("input, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+  const open = current >= 0;
+  const move = (i) => (open ? openPreview(Math.min(Math.max(i, 0), photos.length - 1)) : select(i));
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+  const key = e.key.toLowerCase();
+  if (step !== undefined) move(selected + step);
+  else if (e.key === "Enter" || e.key === " ") openPreview(open ? -1 : selected);
+  else if (e.key === "Escape") openPreview(-1);
+  else if (key === "p" || key === "x") {
+    decide({ status: key === "p" ? "keep" : "reject" });
+    if (autoAdvance) move(selected + 1);
+  } else if (key === "u") decide({ status: null });
+  else if (/^[0-5]$/.test(e.key)) decide({ stars: Number(e.key) });
   else return;
   e.preventDefault();
 });
@@ -273,6 +324,7 @@ function route() {
   clearTimeout(indexTimer);
   photos = [];
   allPhotos = [];
+  selected = 0;
   expanded.clear();
   openPreview(-1);
   const m = location.hash.match(/^#\/p\/([^/]+)(?:\/([^/]+))?$/);

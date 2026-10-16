@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M5.1 Decisions**
-- Last completed: M4.3b Best/All UI (headless Chromium with mocked API: 5 photos show 3 tiles in Best, badge 3, expand shows 5, All shows 5, no JS errors)
+- Next task: **M5.2 Filters, counters and undo**
+- Last completed: M5.1 Decisions (pytest green; headless Chromium with mocked API: P/X/U/0-5/auto-advance send the right PUTs and paint borders and stars, no JS errors)
 - Blockers: none
 
 ## Tuned values and model facts
@@ -37,6 +37,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: duplicate groups (`grouping.regroup`): photo joins the previous photo's group (time order) if same chapter, <= 10 s later, both in the embedding store, cosine >= `dup_threshold` (chain, so a group can span more than 10 s). Pick = max sharpness (NULL counts lowest, ties go to the earliest). Not-yet-indexed photos are singleton groups and their own pick. Group ids are new on each regroup. Runs at the end of `regenerate_chapters` (import, gap change), at the end of the index job (stage `grouping`), and on `PATCH /projects/{id}` with `dup_threshold` (0 to 1). Photo listing now has `group_id`, `is_group_pick`. Decisions untouched.
 - 2026-10-16: Best/All UI (`web/app.js`): default view Best (button toggles, not remembered across reloads). Best shows each group's pick with a blue count badge when the group has 2+ photos; click badge expands to all members (each keeps a badge, click collapses); expanded state is kept in memory per page load. Preview arrows walk the visible tiles only. Grid reloads when an index job ends so groups appear. Browser-checked with mocked API only, not on a real shoot.
 - 2026-10-16: `scripts/dup_sweep.py <folder>` for M4.3c (run on Colab/Kaggle GPU): similarity of consecutive photos within 10 s, group counts per threshold, contact sheet of pairs. Smoke-tested with a stub embedder only; not yet run on a real burst shoot.
+- 2026-10-16: decisions (M5.1): `PUT /api/photos/{id}/decision` body `{status: keep|reject|null, stars: 0-5}` replaces the whole decision (omitted field = cleared), upserts the `decisions` row, returns it. Photo listing joins decisions: `status` (null if none) and `stars` (0 if none). Nothing else writes `decisions`, so import/index/regroup leave it alone (tested). UI: grid selection (`selected`) separate from overlay; arrows move selection (or photo when overlay open), Enter/Space opens, P/X/U/0-5 apply to the selected photo, optimistic update with revert + alert on failure, auto-advance checkbox (on by default, not remembered). Decisions apply to the visible tile only (a Best-view pick, not its group). Keep = green inset border, reject = red border + dimmed, stars shown bottom-left. Ctrl/Cmd keys ignored by the handler until undo (M5.2).
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
