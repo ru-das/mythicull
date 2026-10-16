@@ -1,10 +1,11 @@
+import io
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 import exifread
-from PIL import Image
+from PIL import Image, ImageOps
 
 JPEG_EXTS = {".jpg", ".jpeg"}
 RAW_EXTS = {".cr2", ".cr3", ".nef", ".arw", ".raf", ".dng"}
@@ -135,3 +136,90 @@ def read_metadata(path: Path, companion_path: Path | None = None) -> PhotoMeta:
         height=height,
         orientation=orient.values[0] if orient is not None and orient.values else 1,
     )
+
+
+THUMB_EDGE = 320
+PREVIEW_EDGE = 1600
+
+
+class PreviewError(Exception):
+    """No usable preview could be produced for a photo."""
+
+
+def _raw_preview(path: Path) -> Image.Image:
+    import rawpy
+
+    try:
+        with rawpy.imread(str(path)) as raw:
+            thumb = raw.extract_thumb()
+    except Exception as e:
+        raise PreviewError(f"no embedded preview: {e}") from e
+    if thumb.format == rawpy.ThumbFormat.JPEG:
+        img = Image.open(io.BytesIO(thumb.data))
+    elif thumb.format == rawpy.ThumbFormat.BITMAP:
+        img = Image.fromarray(thumb.data)
+    else:
+        raise PreviewError("unsupported embedded preview format")
+    img.load()
+    return img
+
+
+def _load_source(path: Path, companion_path: Path | None) -> Image.Image:
+    """Largest available image: JPEG itself, or the bigger of RAW embedded preview and JPEG companion."""
+    if path.suffix.lower() not in RAW_EXTS:
+        img = Image.open(path)
+        img.load()
+        return img
+    candidates: list[Image.Image] = []
+    errors: list[str] = []
+    for load in (lambda: _raw_preview(path), lambda: Image.open(companion_path) if companion_path else None):
+        try:
+            img = load()
+            if img is not None:
+                img.load()
+                candidates.append(img)
+        except Exception as e:
+            errors.append(str(e))
+    if not candidates:
+        raise PreviewError("; ".join(errors) or "no usable preview")
+    return max(candidates, key=lambda i: i.width * i.height)
+
+
+_TRANSPOSE = {
+    2: Image.Transpose.FLIP_LEFT_RIGHT,
+    3: Image.Transpose.ROTATE_180,
+    4: Image.Transpose.FLIP_TOP_BOTTOM,
+    5: Image.Transpose.TRANSPOSE,
+    6: Image.Transpose.ROTATE_270,
+    7: Image.Transpose.TRANSVERSE,
+    8: Image.Transpose.ROTATE_90,
+}
+
+
+def _apply_orientation(img: Image.Image, fallback: int) -> Image.Image:
+    # Embedded RAW previews often carry no EXIF, so fall back to the orientation read from the original.
+    if img.getexif().get(0x0112) is None and fallback in _TRANSPOSE:
+        return img.transpose(_TRANSPOSE[fallback])
+    return ImageOps.exif_transpose(img)
+
+
+def _save_jpeg(img: Image.Image, dest: Path, edge: int) -> None:
+    out = img.copy()
+    out.thumbnail((edge, edge))  # only ever shrinks
+    tmp = dest.with_name(dest.name + ".tmp")
+    out.convert("RGB").save(tmp, "JPEG", quality=85)
+    os.replace(tmp, dest)
+
+
+def make_previews(
+    path: Path, companion_path: Path | None, out_dir: Path, photo_id: str, orientation: int = 1
+) -> tuple[Path, Path]:
+    """Write thumb (320 px) and preview (1600 px) JPEGs into out_dir. Existing files are never regenerated."""
+    thumb, preview = out_dir / f"{photo_id}_thumb.jpg", out_dir / f"{photo_id}_preview.jpg"
+    if thumb.exists() and preview.exists():
+        return thumb, preview
+    out_dir.mkdir(parents=True, exist_ok=True)
+    img = _apply_orientation(_load_source(path, companion_path), orientation)
+    _save_jpeg(img, preview, PREVIEW_EDGE)
+    _save_jpeg(img, thumb, THUMB_EDGE)
+    return thumb, preview
