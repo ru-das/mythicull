@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M1.2 Job runner**
-- Last completed: M1.1 Config and database
+- Next task: **M1.3 App shell**
+- Last completed: M1.2 Job runner
 - Blockers: none
 
 ## Tuned values and model facts
@@ -21,6 +21,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 ## Decisions
 - 2026-10-16: spike ran on Colab, not locally (dev machine has 4 GB RAM). Images are CC-licensed Commons photos, not committed.
 - 2026-10-16: `config.data_dir()`/`batch_size()` read env per call (tests set env). `db.connect()` migrates on open; `photos` has UNIQUE(project_id, path) for re-import. `camera_offsets` created now though S3-only.
+- 2026-10-16: jobs run one daemon thread each with their own DB connection (no queue). Statuses: queued, running, done, failed, cancelled, interrupted. Startup marks leftover queued/running jobs `interrupted`. `failures` is a JSON list of `{item, error}`; a raised exception adds `{item: null, error}` and sets `failed`. Cancel is a DB flag the job polls via `ctx.cancelled`. Routes live under `/api`; `main.py` has only the jobs routes until M1.3.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
@@ -28,6 +29,8 @@ fastapi, uvicorn, pydantic, sentence-transformers, torch, rawpy, Pillow, exifrea
 
 ## Known issues
 - M0.2: query prompt not verified against the model card. 32 s/image on CPU is too slow for a real shoot: re-time on GPU and check batch size and input resolution before M4.2. No NaNs. Top-3 for all three test queries were from the matching category folder.
+- M1.2: no per-project job lock. M4.2 must refuse a second index job on a project that already has one active.
+- TestClient warns `httpx` with starlette is deprecated (upstream, harmless).
 <!-- Open problems to fix before the demo. -->
 
 ## Demo numbers (M8.1)
