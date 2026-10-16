@@ -4,7 +4,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 
 ## Current state
 - Next task: **M8.1 End-to-end run**
-- Last completed: M7.3 Export UI (pytest green; headless Chromium with mocked API: both exports start, summary and skip list shown, copy body correct, no JS errors). Manual check still open: sidecars from a real shoot in Lightroom Classic or darktable. Before that M7.2 Copy export (pytest green, tests only). Before that M7.1 XMP export (pytest green; real Lightroom/darktable check is M7.3). Before that M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
+- Last completed: M8.1 prep only (`scripts/demo_numbers.py <project_id>` prints the demo numbers; pytest green; M8.1 itself still open, needs a real shoot). Before that M7.3 Export UI (pytest green; headless Chromium with mocked API: both exports start, summary and skip list shown, copy body correct, no JS errors). Manual check still open: sidecars from a real shoot in Lightroom Classic or darktable. Before that M7.2 Copy export (pytest green, tests only). Before that M7.1 XMP export (pytest green; real Lightroom/darktable check is M7.3). Before that M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
 - Blockers: none
 
 ## Tuned values and model facts
@@ -58,6 +58,7 @@ fastapi, uvicorn, pydantic, sentence-transformers, torch, rawpy, Pillow, exifrea
 <!-- Open problems to fix before the demo. -->
 
 ## Demo numbers (M8.1)
+Fill from `python scripts/demo_numbers.py <project_id>`; review time is timed by hand. Index time sums finished index jobs, so a resumed run counts only its last pass: add earlier passes by hand.
 - Photos in:
 - Chapters:
 - Duplicate groups:
