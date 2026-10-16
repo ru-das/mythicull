@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M1.1 Config and database**
-- Last completed: M0.2 Model spike
+- Next task: **M1.2 Job runner**
+- Last completed: M1.1 Config and database
 - Blockers: none
 
 ## Tuned values and model facts
@@ -20,6 +20,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 
 ## Decisions
 - 2026-10-16: spike ran on Colab, not locally (dev machine has 4 GB RAM). Images are CC-licensed Commons photos, not committed.
+- 2026-10-16: `config.data_dir()`/`batch_size()` read env per call (tests set env). `db.connect()` migrates on open; `photos` has UNIQUE(project_id, path) for re-import. `camera_offsets` created now though S3-only.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added

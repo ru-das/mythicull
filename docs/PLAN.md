@@ -11,7 +11,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: it runs on a real folder; the dtype, device, seconds per image and exact query prompt are recorded in `docs/PROGRESS.md`.
 
 ## M1. Backend foundation
-- [ ] **M1.1 Config and database.** `config.py` (data dir, batch size, defaults), `db.py` with connection helper, WAL mode, migration 1 creating every table in `docs/SPEC.md`.
+- [x] **M1.1 Config and database.** `config.py` (data dir, batch size, defaults), `db.py` with connection helper, WAL mode, migration 1 creating every table in `docs/SPEC.md`.
   Done when: tests create a fresh database and confirm all tables and `schema_version = 1`.
 - [ ] **M1.2 Job runner.** `jobs.py`: background thread executor, progress updates in the `jobs` table, cancellation flag, failures list. `GET /jobs/{id}`, `POST /jobs/{id}/cancel`.
   Done when: a test job reports progress, can be cancelled, and records failures without crashing.
