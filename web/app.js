@@ -61,6 +61,7 @@ function summaryView(p) {
 }
 
 let pollTimer = null;
+let indexTimer = null;
 
 async function showProject(id, jobId) {
   const head = el("h2", { textContent: "Loading…" });
@@ -110,7 +111,42 @@ async function showProject(id, jobId) {
     await loadChapters(p);
     await loadGrid();
   };
-  app.append(el("div", { className: "layout" }, side, grid));
+  const indexBox = el("div", { className: "indexbox" });
+  const indexMsg = el("p", { className: "error" });
+  const indexBtn = el("button", { textContent: "Index photos", title: "Embed previews for search and duplicate groups" });
+  const trackIndex = async (indexJob) => {
+    const bar = el("progress", { max: 1, value: 0 });
+    const label = el("span", { className: "muted" });
+    const stop = el("button", { className: "link", textContent: "cancel", onclick: () => api(`/jobs/${indexJob}/cancel`, { method: "POST" }) });
+    indexBox.replaceChildren(bar, label, " ", stop, indexMsg);
+    const poll = async () => {
+      const j = await api(`/jobs/${indexJob}`);
+      bar.max = j.total || 1;
+      bar.value = j.done;
+      label.textContent = ` Indexing ${j.status}: ${j.done}/${j.total}` + (j.failures.length ? `, ${j.failures.length} failed` : "");
+      if (["queued", "running"].includes(j.status)) {
+        indexTimer = setTimeout(() => poll().catch(showError), 500);
+        return;
+      }
+      stop.remove();
+      indexBtn.disabled = false;
+      indexBox.append(" ", indexBtn);
+      if (j.status !== "done") indexMsg.textContent = j.failures.length ? j.failures[j.failures.length - 1].error : `Indexing ${j.status}.`;
+    };
+    await poll();
+  };
+  indexBtn.onclick = async () => {
+    indexBtn.disabled = true;
+    indexMsg.textContent = "";
+    try {
+      await trackIndex((await api(`/projects/${id}/index`, { method: "POST" })).job_id);
+    } catch (e) {
+      indexMsg.textContent = e.message;
+      indexBtn.disabled = false;
+    }
+  };
+  indexBox.append(indexBtn, indexMsg);
+  app.append(indexBox, el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
   const bar = el("progress", { max: 1, value: 0 });
   const label = el("p", { className: "muted" });
@@ -185,6 +221,7 @@ function showError(e) {
 
 function route() {
   clearTimeout(pollTimer);
+  clearTimeout(indexTimer);
   photos = [];
   openPreview(-1);
   const m = location.hash.match(/^#\/p\/([^/]+)(?:\/([^/]+))?$/);

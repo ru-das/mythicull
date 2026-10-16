@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M4.2b Indexing UI**
-- Last completed: M4.2a Indexing backend (fake-embedder tests: full index, resume, cancel, 409; real model not run here)
+- Next task: **M4.2c Real index** (manual: you run it)
+- Last completed: M4.2b Indexing UI (headless Chromium + fake embedder: bar goes running to done 8/8, no JS errors)
 - Blockers: none
 
 ## Tuned values and model facts
@@ -31,6 +31,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: `GET /api/projects/{id}/photos` returns all photos by capture_time (no chapter/view/filter params yet: added in M4.1/M4.3/M5.2). `GET /api/photos/{id}/thumb|preview` serve cached JPEGs with immutable cache headers. Grid uses native `loading=lazy` on `<img>`. Keys: Enter opens first photo, arrows move, Esc/Enter/Space close. Amber `!` badge when `time_source == mtime`.
 - 2026-10-16: chapters (`grouping.py`): gap strictly > `chapter_gap_minutes` splits; chapters under 3 photos merge into the nearer neighbour in time (tie: earlier), repeated until none are small. `regenerate_chapters` runs at the end of every import job and synchronously in `PATCH /api/projects/{id}` (timestamps only, fast). It deletes and recreates chapter rows, so chapter ids change on each regenerate. User titles carry to the new chapter with the largest photo overlap (each title and chapter used once; ties go to the first found). Blank rename reverts to the auto title. `GET /photos?chapter=<id>` filters. Sidebar shows title and photo count; kept count waits for M5.
 - 2026-10-16: indexing (`embed.py`): store is `<project>/embeddings.npy` + `embedding_ids.json` `{model_id, ids}`, rewritten whole per batch via tmp + `os.replace`, npy first then ids; load trusts ids and slices extra npy rows. Store from another model id counts as empty. Resume = skip ids in store (store is source of truth; `embedded=1` re-synced on start). Sharpness cached in `photos.sharpness`, computed only when NULL. Bad preview or NaN row -> `ctx.fail`, job continues. `POST /projects/{id}/index` -> `{job_id}`, 409 if an index job is active. Model singleton via `embed.get_embedder()`; tests set `embed._embedder`.
+- 2026-10-16: UI index control (`web/app.js`): "Index photos" button above the grid, progress bar with cancel, shows last failure text if the job fails (e.g. model download blocked). Reopening a project mid-index shows no progress (no job lookup by project); button then gets a 409 message.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
