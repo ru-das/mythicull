@@ -50,7 +50,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 ## M5. Review
 - [x] **M5.1 Decisions.** `PUT /photos/{id}/decision`, decision state in photo listings, P/X/U and 0 to 5 keys, auto-advance, keep/reject borders and star display.
   Done when: tests confirm decisions survive re-import, re-index and regrouping.
-- [ ] **M5.2 Filters, counters and undo.** Unreviewed/Kept/Rejected filter, counters in the top bar and sidebar, Ctrl/Cmd+Z undo stack.
+- [x] **M5.2 Filters, counters and undo.** Unreviewed/Kept/Rejected filter, counters in the top bar and sidebar, Ctrl/Cmd+Z undo stack.
   Done when: a 100-photo keyboard-only cull survives a server restart.
 
 ## M6. Search

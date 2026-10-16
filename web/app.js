@@ -72,8 +72,15 @@ async function showProject(id, jobId) {
   let chapterId = null;
   const loadGrid = async () =>
     showGrid(grid, await api(`/projects/${id}/photos` + (chapterId ? `?chapter=${chapterId}` : "")));
+  const counters = el("span", { className: "muted counters" });
+  let chapterProject = null;
+  refreshCounts = () => chapterProject && loadChapters(chapterProject);
   const loadChapters = async (p) => {
+    chapterProject = p;
     const chapters = await api(`/projects/${id}/chapters`);
+    const total = (k) => chapters.reduce((n, c) => n + c[k], 0);
+    const all = total("photo_count"), kept = total("kept_count"), rejected = total("rejected_count");
+    counters.textContent = `${all} photos · ${kept} kept · ${rejected} rejected · ${all - kept - rejected} unreviewed`;
     if (chapterId && !chapters.some((c) => c.id === chapterId)) chapterId = null;
     const gap = el("input", { type: "number", min: 1, value: p.chapter_gap_minutes, title: "Minutes of quiet that start a new chapter" });
     gap.onchange = async () => {
@@ -92,7 +99,7 @@ async function showProject(id, jobId) {
           await loadGrid();
         } }));
       if (c) {
-        li.append(el("div", { className: "muted", textContent: `${c.photo_count} photos` }),
+        li.append(el("div", { className: "muted", textContent: `${c.photo_count} photos, ${c.kept_count} kept` }),
           el("button", { className: "link", textContent: "rename", onclick: async () => {
             const t = prompt("Chapter title (blank resets)", c.user_title || c.title);
             if (t === null) return;
@@ -152,7 +159,10 @@ async function showProject(id, jobId) {
   viewBtn.onclick = () => { view = view === "best" ? "all" : "best"; syncView(); renderGrid(); };
   syncView();
   const adv = el("input", { type: "checkbox", checked: autoAdvance, onchange: () => { autoAdvance = adv.checked; } });
-  indexBox.append(" ", viewBtn, " ", el("label", { title: "Move to the next photo after P or X" }, adv, " Auto-advance"));
+  const filterSel = el("select", { title: "Show photos by review state", onchange: () => { filter = filterSel.value; renderGrid(); } },
+    ...[["all", "All"], ["unreviewed", "Unreviewed"], ["keep", "Kept"], ["reject", "Rejected"]]
+      .map(([v, t]) => el("option", { value: v, textContent: t, selected: v === filter })));
+  indexBox.append(" ", filterSel, " ", counters, " ", viewBtn, " ", el("label", { title: "Move to the next photo after P or X" }, adv, " Auto-advance"));
   app.append(indexBox, el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
   const bar = el("progress", { max: 1, value: 0 });
@@ -178,6 +188,9 @@ let photos = [];
 let current = -1; // overlay index, -1 = closed
 let selected = 0; // grid selection
 let autoAdvance = true;
+let filter = "all";
+let refreshCounts = () => {};
+const undoStack = [];
 let cells = [];
 const overlay = el("div", { className: "overlay", hidden: true });
 const bigImg = el("img");
@@ -222,20 +235,33 @@ function paintCell(i) {
   if (current === i) caption.textContent = captionText(p);
 }
 
+async function save(p, next) {
+  const old = { status: p.status, stars: p.stars };
+  const paint = () => { const i = photos.indexOf(p); if (i >= 0) paintCell(i); };
+  Object.assign(p, next); // optimistic; same object lives in allPhotos
+  paint();
+  try {
+    await api(`/photos/${p.id}/decision`, jsonBody("PUT", next));
+    refreshCounts();
+    return old;
+  } catch (e) {
+    Object.assign(p, old);
+    paint();
+    alert(`Could not save decision: ${e.message}`);
+    return null;
+  }
+}
+
 async function decide(change) {
   const p = photos[selected];
   if (!p) return;
-  const next = { status: p.status, stars: p.stars, ...change };
-  const old = { status: p.status, stars: p.stars };
-  Object.assign(p, next); // optimistic; same object lives in allPhotos
-  paintCell(selected);
-  try {
-    await api(`/photos/${p.id}/decision`, jsonBody("PUT", next));
-  } catch (e) {
-    Object.assign(p, old);
-    paintCell(selected);
-    alert(`Could not save decision: ${e.message}`);
-  }
+  const old = await save(p, { status: p.status, stars: p.stars, ...change });
+  if (old) undoStack.push({ p, old });
+}
+
+async function undo() {
+  const last = undoStack.pop();
+  if (last) await save(allPhotos.find((q) => q.id === last.p.id) || last.p, last.old); // grid may have reloaded
 }
 
 let allPhotos = [];
@@ -243,7 +269,14 @@ let gridEl = null;
 let view = "best";
 const expanded = new Set();
 
+const matchesFilter = (p) =>
+  filter === "all" || (filter === "unreviewed" ? !p.status : p.status === filter);
+
 function visiblePhotos() {
+  return groupedPhotos().filter(matchesFilter);
+}
+
+function groupedPhotos() {
   if (view === "all") return allPhotos;
   const groups = new Map();
   for (const p of allPhotos) {
@@ -298,6 +331,11 @@ function showGrid(grid, list) {
 }
 
 document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.target.matches("input, textarea")) {
+    undo();
+    e.preventDefault();
+    return;
+  }
   if (!photos.length || e.target.matches("input, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
   const open = current >= 0;
   const move = (i) => (open ? openPreview(Math.min(Math.max(i, 0), photos.length - 1)) : select(i));
@@ -326,6 +364,9 @@ function route() {
   allPhotos = [];
   selected = 0;
   expanded.clear();
+  undoStack.length = 0;
+  filter = "all";
+  refreshCounts = () => {};
   openPreview(-1);
   const m = location.hash.match(/^#\/p\/([^/]+)(?:\/([^/]+))?$/);
   (m ? showProject(m[1], m[2]) : showList()).catch(showError);

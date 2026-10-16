@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M5.2 Filters, counters and undo**
-- Last completed: M5.1 Decisions (pytest green; headless Chromium with mocked API: P/X/U/0-5/auto-advance send the right PUTs and paint borders and stars, no JS errors)
+- Next task: **M6.1 Search**
+- Last completed: M5.2 Filters, counters and undo (pytest green; headless Chromium with mocked API: counters, filter and Ctrl+Z work, no JS errors). The 100-photo keyboard cull with a server restart is still a manual check.
 - Blockers: none
 
 ## Tuned values and model facts
@@ -38,6 +38,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: Best/All UI (`web/app.js`): default view Best (button toggles, not remembered across reloads). Best shows each group's pick with a blue count badge when the group has 2+ photos; click badge expands to all members (each keeps a badge, click collapses); expanded state is kept in memory per page load. Preview arrows walk the visible tiles only. Grid reloads when an index job ends so groups appear. Browser-checked with mocked API only, not on a real shoot.
 - 2026-10-16: `scripts/dup_sweep.py <folder>` for M4.3c (run on Colab/Kaggle GPU): similarity of consecutive photos within 10 s, group counts per threshold, contact sheet of pairs. Smoke-tested with a stub embedder only; not yet run on a real burst shoot.
 - 2026-10-16: decisions (M5.1): `PUT /api/photos/{id}/decision` body `{status: keep|reject|null, stars: 0-5}` replaces the whole decision (omitted field = cleared), upserts the `decisions` row, returns it. Photo listing joins decisions: `status` (null if none) and `stars` (0 if none). Nothing else writes `decisions`, so import/index/regroup leave it alone (tested). UI: grid selection (`selected`) separate from overlay; arrows move selection (or photo when overlay open), Enter/Space opens, P/X/U/0-5 apply to the selected photo, optimistic update with revert + alert on failure, auto-advance checkbox (on by default, not remembered). Decisions apply to the visible tile only (a Best-view pick, not its group). Keep = green inset border, reject = red border + dimmed, stars shown bottom-left. Ctrl/Cmd keys ignored by the handler until undo (M5.2).
+- 2026-10-16: M5.2: filter (All/Unreviewed/Kept/Rejected) is client-side, applied to the visible tiles after Best/All grouping; it is re-applied on filter change, view change or grid reload, not on each decision, so a tile does not vanish under the cursor. `GET /photos` has no `filter` param (SPEC lists one; not needed). Chapters now return `kept_count` and `rejected_count`; the top-bar counters sum them across chapters and refresh after every save. Undo is an in-memory stack (lost on reload) that restores the previous status and stars through the same PUT; Ctrl/Cmd+Z only. Filter and undo reset when changing route. Test env: use `.venv/bin/python -m pytest`; Playwright needs `executable_path='/opt/pw-browsers/chromium'`.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added

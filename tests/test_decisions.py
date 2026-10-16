@@ -49,3 +49,15 @@ def test_decisions_survive_reimport_reindex_regroup(client, burst):  # noqa: F81
     a, b = photo(client, pid, ids[2]), photo(client, pid, ids[6])
     assert (a["status"], a["stars"]) == ("keep", 5)
     assert (b["status"], b["stars"]) == ("reject", 1)
+
+
+def test_chapter_kept_and_rejected_counts(client, burst):  # noqa: F811
+    pid, ids = burst
+    client.put(f"/api/photos/{ids[0]}/decision", json={"status": "keep"})
+    client.put(f"/api/photos/{ids[1]}/decision", json={"status": "keep", "stars": 2})
+    client.put(f"/api/photos/{ids[2]}/decision", json={"status": "reject"})
+    chapters = client.get(f"/api/projects/{pid}/chapters").json()
+    assert sum(c["kept_count"] for c in chapters) == 2
+    assert sum(c["rejected_count"] for c in chapters) == 1
+    client.put(f"/api/photos/{ids[0]}/decision", json={})
+    assert sum(c["kept_count"] for c in client.get(f"/api/projects/{pid}/chapters").json()) == 1

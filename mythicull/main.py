@@ -191,6 +191,8 @@ class ChapterOut(BaseModel):
     user_title: str | None
     title: str
     photo_count: int
+    kept_count: int
+    rejected_count: int
 
 
 class ChapterPatch(BaseModel):
@@ -198,7 +200,10 @@ class ChapterPatch(BaseModel):
 
 
 _CHAPTER_SQL = (
-    "SELECT c.*, (SELECT COUNT(*) FROM photos WHERE chapter_id = c.id) AS photo_count FROM chapters c"
+    "SELECT c.*, (SELECT COUNT(*) FROM photos WHERE chapter_id = c.id) AS photo_count,"
+    " (SELECT COUNT(*) FROM photos p JOIN decisions d ON d.photo_id = p.id WHERE p.chapter_id = c.id AND d.status = 'keep') AS kept_count,"
+    " (SELECT COUNT(*) FROM photos p JOIN decisions d ON d.photo_id = p.id WHERE p.chapter_id = c.id AND d.status = 'reject') AS rejected_count"
+    " FROM chapters c"
 )
 
 
