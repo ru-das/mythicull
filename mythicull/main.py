@@ -1,7 +1,10 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from mythicull import db, jobs
@@ -58,3 +61,16 @@ def get_job(job_id: str) -> JobOut:
 @app.post("/api/jobs/{job_id}/cancel")
 def cancel_job(job_id: str) -> JobOut:
     return _job_or_404(job_id, cancel=True)
+
+
+class HealthOut(BaseModel):
+    status: str
+
+
+@app.get("/api/health")
+def health() -> HealthOut:
+    return HealthOut(status="ok")
+
+
+# Mounted last so /api routes added above take precedence.
+app.mount("/", StaticFiles(directory=Path(__file__).parent.parent / "web", html=True), name="web")

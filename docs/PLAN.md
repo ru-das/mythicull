@@ -15,7 +15,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: tests create a fresh database and confirm all tables and `schema_version = 1`.
 - [x] **M1.2 Job runner.** `jobs.py`: background thread executor, progress updates in the `jobs` table, cancellation flag, failures list. `GET /jobs/{id}`, `POST /jobs/{id}/cancel`.
   Done when: a test job reports progress, can be cancelled, and records failures without crashing.
-- [ ] **M1.3 App shell.** `main.py` with `/api/health` and static serving of `web/`.
+- [x] **M1.3 App shell.** `main.py` with `/api/health` and static serving of `web/`.
   Done when: `uvicorn` starts and http://localhost:8000 shows the placeholder page.
 
 ## M2. Import
