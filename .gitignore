@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.npy
+*.pt
+*.safetensors
+*.bin
+.mythicull/
+# photos and RAWs
+*.jpg
+*.jpeg
+*.dng
+*.cr2
+*.cr3
+*.nef
+*.arw
+*.orf
+*.rw2
+*.raf
