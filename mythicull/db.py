@@ -77,6 +77,7 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (project_id, camera_model)
     );
     """,
+    "ALTER TABLE projects ADD COLUMN last_import TEXT;",  # JSON import summary
 ]
 
 

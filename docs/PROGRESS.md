@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M2.4 Project API and import job**
-- Last completed: M2.3 Thumbnails and previews
+- Next task: **M3.1 Projects screen**
+- Last completed: M2.4 Project API and import job
 - Blockers: none
 
 ## Tuned values and model facts
@@ -26,6 +26,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: `ingest.scan_folder(root)` returns `ScanResult(items, skipped)`; item `path` is RAW when paired. Readability checked by reading 1 byte. Dotfiles are not special-cased (unsupported ext, or ok if named .jpg).
 - 2026-10-16: `ingest.read_metadata(path, companion)` returns `PhotoMeta`. `capture_time` is naive local ISO with ms (sorts as text); `time_source` is `exif` (DateTimeOriginal), `exif_modified` (Image DateTime) or `mtime`. M3.2 badge should warn on `mtime` only. RAW falls back to its JPEG companion for tags. Sub-second digits are a decimal fraction ("9" = .9 s). Parsing uses exifread; RAW dimensions via rawpy (untested on real RAW).
 - 2026-10-16: `ingest.make_previews(path, companion, out_dir, photo_id, orientation)` writes `<id>_thumb.jpg` (320) and `<id>_preview.jpg` (1600), q85, never upscales, skips if both exist (source not touched). RAW uses the larger of embedded preview and JPEG companion. Orientation: EXIF in the preview wins, else the original's orientation. Raises `PreviewError` when no preview; M2.4 must record it as skip reason/`import_error`. RAW path tested with mocks only, not real RAWs.
+- 2026-10-16: `POST /api/projects` {name, folder} -> {project, job_id}; 400 on blank name or missing folder. `ingest.import_project(ctx, project_id)` is the job body: only paths not already in `photos` are added, so existing rows, decisions and cached images are untouched. Migration 2 adds `projects.last_import` (JSON summary: found, imported, already_present, skipped[{path, reason}]), returned by project routes with `photo_count`. Unsupported/unreadable/no-preview files are skipped (not inserted) and also appear in job `failures`. Job `total` = supported photos found. Re-import has no endpoint yet (POST /projects always makes a new project); M3.1 may need one. Images live in `<data_dir>/projects/<id>/images/`.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added

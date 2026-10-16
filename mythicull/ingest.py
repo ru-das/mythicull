@@ -1,11 +1,15 @@
 import io
+import json
 import os
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 import exifread
 from PIL import Image, ImageOps
+
+from mythicull import config, db, jobs
 
 JPEG_EXTS = {".jpg", ".jpeg"}
 RAW_EXTS = {".cr2", ".cr3", ".nef", ".arw", ".raf", ".dng"}
@@ -223,3 +227,48 @@ def make_previews(
     _save_jpeg(img, preview, PREVIEW_EDGE)
     _save_jpeg(img, thumb, THUMB_EDGE)
     return thumb, preview
+
+
+def import_project(ctx: jobs.JobContext, project_id: str) -> None:
+    """Import job body: scan, then add only photos not yet in the project. Existing rows and decisions are never touched."""
+    conn = ctx.conn
+    folder = Path(conn.execute("SELECT folder FROM projects WHERE id = ?", (project_id,)).fetchone()["folder"])
+    out_dir = config.data_dir() / "projects" / project_id / "images"
+    ctx.stage("scanning")
+    scan = scan_folder(folder)
+    skipped = [{"path": str(p), "reason": r} for p, r in scan.skipped]
+    for s in skipped:
+        ctx.fail(s["path"], s["reason"])
+    ctx.set_total(len(scan.items))
+    ctx.stage("importing")
+    known = {r["path"] for r in conn.execute("SELECT path FROM photos WHERE project_id = ?", (project_id,))}
+    imported = already = 0
+    for item in scan.items:
+        if ctx.cancelled:
+            break
+        if str(item.path) in known:
+            already += 1
+        else:
+            photo_id = uuid.uuid4().hex
+            try:
+                meta = read_metadata(item.path, item.companion_path)
+                thumb, preview = make_previews(item.path, item.companion_path, out_dir, photo_id, meta.orientation)
+            except Exception as e:  # one bad file must not stop the import
+                skipped.append({"path": str(item.path), "reason": str(e)})
+                ctx.fail(str(item.path), str(e))
+            else:
+                with conn:
+                    conn.execute(
+                        "INSERT INTO photos (id, project_id, path, companion_path, filename, file_size, mtime,"
+                        " camera_make, camera_model, capture_time, time_source, width, height, orientation,"
+                        " thumb_path, preview_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (photo_id, project_id, str(item.path), str(item.companion_path) if item.companion_path else None,
+                         item.path.name, meta.file_size, meta.mtime, meta.camera_make, meta.camera_model,
+                         meta.capture_time, meta.time_source, meta.width, meta.height, meta.orientation,
+                         str(thumb), str(preview)),
+                    )
+                imported += 1
+        ctx.advance()
+    summary = {"found": len(scan.items), "imported": imported, "already_present": already, "skipped": skipped}
+    with conn:
+        conn.execute("UPDATE projects SET last_import = ? WHERE id = ?", (json.dumps(summary), project_id))

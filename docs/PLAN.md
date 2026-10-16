@@ -25,7 +25,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: tests cover EXIF time, sub-second ordering and the mtime fallback.
 - [x] **M2.3 Thumbnails and previews.** JPEG and RAW embedded previews, orientation applied, cached in the data dir.
   Done when: tests confirm sizes and orientation; a second run regenerates nothing.
-- [ ] **M2.4 Project API and import job.** `POST /projects`, `GET /projects`, `GET /projects/{id}`, import summary, re-import adds only new files.
+- [x] **M2.4 Project API and import job.** `POST /projects`, `GET /projects`, `GET /projects/{id}`, import summary, re-import adds only new files.
   Done when: tests import the fixture folder twice and photo counts and decisions are unchanged the second time.
 
 ## M3. Browsing UI
