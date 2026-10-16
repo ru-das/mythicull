@@ -39,7 +39,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **M4.2a Indexing backend.** `embed.py` (lazy model load, fake embedder for tests), embeddings `.npy` store, sharpness in `quality.py`, `POST /projects/{id}/index`, resume and cancel.
   Done when: tests with the fake embedder cover resume after interruption and cancel.
 - [x] **M4.2b Indexing UI.** Index button and progress bar in the project view (reuse import progress polling).
-- [ ] **M4.2c Real index.** Index the real shoot to completion; re-time s/image on GPU and check batch size.
+- [x] **M4.2c Real index.** Index the real shoot to completion; re-time s/image on GPU and check batch size.
   Done when: a real index of the shoot completes (manual).
 - [ ] **M4.3 Duplicate groups.** Groups by 10 s window and `dup_threshold`, sharpest pick, regroup on settings change, Best/All toggle with count badges and expand.
   Done when: the burst test passes; `dup_threshold` is checked on the real shoot and recorded in `docs/PROGRESS.md`.

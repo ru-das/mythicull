@@ -3,7 +3,7 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M4.2c Real index** (manual: you run it)
+- Next task: **M4.3 Duplicate groups**
 - Last completed: M4.2b Indexing UI (headless Chromium + fake embedder: bar goes running to done 8/8, no JS errors)
 - Blockers: none
 
@@ -11,8 +11,8 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 | Item | Value | Source or how it was checked |
 | --- | --- | --- |
 | Model id | `google/embeddinggemma-2` | |
-| Load dtype and device | float32 on CPU | M0.2, Colab session with no GPU (needs transformers from latest release) |
-| Seconds per image | 32.4 (CPU, Colab) | M0.2, 117 CC-licensed wedding images from Wikimedia Commons. GPU speed not measured |
+| Load dtype and device | float32 on CPU; bfloat16 on cuda:0 | M0.2, Colab session with no GPU (needs transformers from latest release) |
+| Seconds per image | 32.4 (CPU, Colab); about 1.05 or less (GPU, Kaggle) | M0.2 and M4.2c, 117 CC-licensed Commons wedding images. GPU figure is 123 s total for 117 photos including model load, so per-image after load is lower; batch size used not recorded |
 | Search query prompt | `task: search result \| query: ` | UNVERIFIED placeholder, not checked against the model card; confirm before M6.1 |
 | `chapter_gap_minutes` | 15 (default) | |
 | `dup_threshold` | 0.92 (default, untuned) | |
@@ -33,6 +33,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: indexing (`embed.py`): store is `<project>/embeddings.npy` + `embedding_ids.json` `{model_id, ids}`, rewritten whole per batch via tmp + `os.replace`, npy first then ids; load trusts ids and slices extra npy rows. Store from another model id counts as empty. Resume = skip ids in store (store is source of truth; `embedded=1` re-synced on start). Sharpness cached in `photos.sharpness`, computed only when NULL. Bad preview or NaN row -> `ctx.fail`, job continues. `POST /projects/{id}/index` -> `{job_id}`, 409 if an index job is active. Model singleton via `embed.get_embedder()`; tests set `embed._embedder`.
 - 2026-10-16: UI index control (`web/app.js`): "Index photos" button above the grid, progress bar with cancel, shows last failure text if the job fails (e.g. model download blocked). Reopening a project mid-index shows no progress (no job lookup by project); button then gets a 409 message.
 - 2026-10-16: M4.2c partial, cloud container (4 CPU, 15 GB, no GPU): real `GemmaEmbedder` passes `pytest -m model`; index job over 16 synthetic 1600 px JPEGs finished done 16/16, no failures, float32 on cpu, no NaN, store (16, 768), 127 s total = 7.96 s/image including model load (about 5.5 s/image after load). Synthetic only, so the real-shoot check is still open. Wikimedia Commons returned 403 "robot policy" to the container, so no sample photos were fetched.
+- 2026-10-16: M4.2c done on Kaggle GPU: 117 Commons photos indexed, store (117, 768), no NaN, cuda:0 bfloat16, 123 s incl. model load. These are public photos, not a private shoot; a run on a private shoot is still worth doing before the M8.1 demo.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
