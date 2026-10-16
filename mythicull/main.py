@@ -267,6 +267,31 @@ def start_export_xmp(project_id: str) -> JobStartedOut:
     return JobStartedOut(job_id=jobs.start("export_xmp", lambda ctx: export.export_xmp(ctx, project_id), project_id))
 
 
+class CopyExportIn(BaseModel):
+    destination: str
+    per_chapter: bool = False
+
+
+@app.post("/api/projects/{project_id}/export/copy")
+def start_export_copy(project_id: str, body: CopyExportIn) -> JobStartedOut:
+    conn = db.connect()
+    try:
+        _require_project(conn, project_id)
+        folder = conn.execute("SELECT folder FROM projects WHERE id = ?", (project_id,)).fetchone()["folder"]
+    finally:
+        conn.close()
+    if not body.destination.strip():
+        raise HTTPException(400, "destination required")
+    dest = Path(body.destination).expanduser().resolve()
+    if dest.exists() and not dest.is_dir():
+        raise HTTPException(400, f"destination is not a folder: {dest}")
+    if dest.is_relative_to(Path(folder).resolve()):
+        raise HTTPException(400, "destination must be outside the photo folder")
+    return JobStartedOut(
+        job_id=jobs.start("export_copy", lambda ctx: export.export_copy(ctx, project_id, dest, body.per_chapter), project_id)
+    )
+
+
 class PhotoOut(BaseModel):
     id: str
     filename: str
