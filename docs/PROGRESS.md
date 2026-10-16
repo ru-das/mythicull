@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M7.1 XMP export**
-- Last completed: M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
+- Next task: **M7.2 Copy export**
+- Last completed: M7.1 XMP export (pytest green; real Lightroom/darktable check is M7.3). Before that M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
 - Blockers: none
 
 ## Tuned values and model facts
@@ -40,6 +40,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: decisions (M5.1): `PUT /api/photos/{id}/decision` body `{status: keep|reject|null, stars: 0-5}` replaces the whole decision (omitted field = cleared), upserts the `decisions` row, returns it. Photo listing joins decisions: `status` (null if none) and `stars` (0 if none). Nothing else writes `decisions`, so import/index/regroup leave it alone (tested). UI: grid selection (`selected`) separate from overlay; arrows move selection (or photo when overlay open), Enter/Space opens, P/X/U/0-5 apply to the selected photo, optimistic update with revert + alert on failure, auto-advance checkbox (on by default, not remembered). Decisions apply to the visible tile only (a Best-view pick, not its group). Keep = green inset border, reject = red border + dimmed, stars shown bottom-left. Ctrl/Cmd keys ignored by the handler until undo (M5.2).
 - 2026-10-16: M5.2: filter (All/Unreviewed/Kept/Rejected) is client-side, applied to the visible tiles after Best/All grouping; it is re-applied on filter change, view change or grid reload, not on each decision, so a tile does not vanish under the cursor. `GET /photos` has no `filter` param (SPEC lists one; not needed). Chapters now return `kept_count` and `rejected_count`; the top-bar counters sum them across chapters and refresh after every save. Undo is an in-memory stack (lost on reload) that restores the previous status and stars through the same PUT; Ctrl/Cmd+Z only. Filter and undo reset when changing route. Test env: use `.venv/bin/python -m pytest`; Playwright needs `executable_path='/opt/pw-browsers/chromium'`.
 - 2026-10-16: search (M6.1): `GET /projects/{id}/search?q=&k=&chapter=` returns `PhotoOut` list best-first (no scores, per the calibration rule); `k` default 50 (`config.DEFAULT_SEARCH_K`), 1 to 500; blank q 400; unknown project 404; unindexed project returns `[]` (model not loaded); any embedder error -> 503 `search unavailable: ...`. Chapter scope filters before ranking. Brute-force `matrix @ query` in `search.rank`. UI: search box in the top bar, `/` focuses, Enter runs, Esc or the x clears; hits show ungrouped in rank order (Best/All ignored while searching); picking a chapter re-runs the search in that chapter; filter still applies. `FakeEmbedder.encode_text` is now deterministic (was broken).
+- 2026-10-16: XMP export (M7.1): `POST /api/projects/{id}/export/xmp` -> `{job_id}` (job kind `export_xmp`, `export.export_xmp`). Only photos with status keep/reject; RAW ext other than `.dng` only. Sidecar `<raw path with .xmp>`, written directly (not tmp+rename). Summary = job: `done` counts processed, `failures` = skipped `{item, error}`; written = `total` minus failures. Skips: JPEG/DNG, missing original, existing sidecar without `xmp:CreatorTool="MythiCull"`. Keep rating = max(stars,1) + Green; reject = 0 + Red.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
@@ -51,6 +52,7 @@ fastapi, uvicorn, pydantic, sentence-transformers, torch, rawpy, Pillow, exifrea
 - M3.2: checked in headless Chromium (cloud container) with 400 synthetic 3000x2000 JPEGs: import 49 s, 400 cells, 216 thumbs loaded after scrolling (lazy works), preview and arrow keys work, no JS errors. A real shoot has not been scrolled. Photo list is one unpaginated JSON array (fine to ~3000).
 - TestClient warns `httpx` with starlette is deprecated (upstream, harmless).
 - M4.3c: recheck `dup_threshold` on a real shoot with moving subjects at M8.1 (run `scripts/dup_sweep.py`); HDR+ test had only easy negatives.
+- M7.1: a sidecar stays as written if the decision is later cleared (no removal). A RAW+JPEG pair uses the RAW name only; two RAWs with the same stem but different extensions share one `.xmp`. Not tried in Lightroom/darktable yet.
 <!-- Open problems to fix before the demo. -->
 
 ## Demo numbers (M8.1)

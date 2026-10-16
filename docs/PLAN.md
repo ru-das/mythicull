@@ -58,7 +58,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: tests with the fake embedder confirm ranking order; the real-shoot "people dancing" check is recorded.
 
 ## M7. Export
-- [ ] **M7.1 XMP export.** Sidecar writer, existing-sidecar rule, summary.
+- [x] **M7.1 XMP export.** Sidecar writer, existing-sidecar rule, summary.
   Done when: tests cover keep, reject, foreign sidecar skipped, own sidecar updated, JPEG skipped.
 - [ ] **M7.2 Copy export.** Kept photos and companions, per-chapter folders option, no-overwrite suffixes, refuse destination inside source, manifest.
   Done when: tests cover name clashes and the refused destination.

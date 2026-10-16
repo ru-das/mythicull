@@ -13,7 +13,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from mythicull import config, db, embed, grouping, ingest, jobs, search
+from mythicull import config, db, embed, export, grouping, ingest, jobs, search
 
 
 @asynccontextmanager
@@ -255,6 +255,16 @@ def start_index(project_id: str) -> JobStartedOut:
     if busy:
         raise HTTPException(409, "an index job is already running for this project")
     return JobStartedOut(job_id=jobs.start("index", lambda ctx: embed.index_project(ctx, project_id), project_id))
+
+
+@app.post("/api/projects/{project_id}/export/xmp")
+def start_export_xmp(project_id: str) -> JobStartedOut:
+    conn = db.connect()
+    try:
+        _require_project(conn, project_id)
+    finally:
+        conn.close()
+    return JobStartedOut(job_id=jobs.start("export_xmp", lambda ctx: export.export_xmp(ctx, project_id), project_id))
 
 
 class PhotoOut(BaseModel):
