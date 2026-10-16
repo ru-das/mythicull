@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M6.1 Search**
-- Last completed: M5.2 Filters, counters and undo (pytest green; headless Chromium with mocked API: counters, filter and Ctrl+Z work, no JS errors). The 100-photo keyboard cull with a server restart is still a manual check.
+- Next task: **M7.1 XMP export**
+- Last completed: M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
 - Blockers: none
 
 ## Tuned values and model facts
@@ -13,7 +13,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 | Model id | `google/embeddinggemma-2` | |
 | Load dtype and device | float32 on CPU; bfloat16 on cuda:0 | M0.2, Colab session with no GPU (needs transformers from latest release) |
 | Seconds per image | 32.4 (CPU, Colab); about 1.05 or less (GPU, Kaggle) | M0.2 and M4.2c, 117 CC-licensed Commons wedding images. GPU figure is 123 s total for 117 photos including model load, so per-image after load is lower; batch size used not recorded |
-| Search query prompt | `task: search result \| query: ` | UNVERIFIED placeholder, not checked against the model card; confirm before M6.1 |
+| Search query prompt | `task: search result \| query: ` | M6.1: verified in the model repo's `config_sentence_transformers.json` (`query` / `Retrieval-query` / `SearchQuery` prompts). Model card text itself not read |
 | `chapter_gap_minutes` | 15 (default) | |
 | `dup_threshold` | 0.92 (kept) | M4.3c, `scripts/dup_sweep.py` on 354 HDR+ burst frames from 40 bursts (Kaggle/Colab GPU), synthetic times: same-burst pairs 0.973 to 0.999, cross-burst 0.54 to 0.68; groups 39 for 0.85 to 0.94, 42 at 0.96, 48 at 0.98 (ideal 40). Easy cases only; HDR+ frames are 0.1 s exposure brackets, real bursts will score lower |
 | XMP tested in | TBD (M7.3) | |
@@ -39,6 +39,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: `scripts/dup_sweep.py <folder>` for M4.3c (run on Colab/Kaggle GPU): similarity of consecutive photos within 10 s, group counts per threshold, contact sheet of pairs. Smoke-tested with a stub embedder only; not yet run on a real burst shoot.
 - 2026-10-16: decisions (M5.1): `PUT /api/photos/{id}/decision` body `{status: keep|reject|null, stars: 0-5}` replaces the whole decision (omitted field = cleared), upserts the `decisions` row, returns it. Photo listing joins decisions: `status` (null if none) and `stars` (0 if none). Nothing else writes `decisions`, so import/index/regroup leave it alone (tested). UI: grid selection (`selected`) separate from overlay; arrows move selection (or photo when overlay open), Enter/Space opens, P/X/U/0-5 apply to the selected photo, optimistic update with revert + alert on failure, auto-advance checkbox (on by default, not remembered). Decisions apply to the visible tile only (a Best-view pick, not its group). Keep = green inset border, reject = red border + dimmed, stars shown bottom-left. Ctrl/Cmd keys ignored by the handler until undo (M5.2).
 - 2026-10-16: M5.2: filter (All/Unreviewed/Kept/Rejected) is client-side, applied to the visible tiles after Best/All grouping; it is re-applied on filter change, view change or grid reload, not on each decision, so a tile does not vanish under the cursor. `GET /photos` has no `filter` param (SPEC lists one; not needed). Chapters now return `kept_count` and `rejected_count`; the top-bar counters sum them across chapters and refresh after every save. Undo is an in-memory stack (lost on reload) that restores the previous status and stars through the same PUT; Ctrl/Cmd+Z only. Filter and undo reset when changing route. Test env: use `.venv/bin/python -m pytest`; Playwright needs `executable_path='/opt/pw-browsers/chromium'`.
+- 2026-10-16: search (M6.1): `GET /projects/{id}/search?q=&k=&chapter=` returns `PhotoOut` list best-first (no scores, per the calibration rule); `k` default 50 (`config.DEFAULT_SEARCH_K`), 1 to 500; blank q 400; unknown project 404; unindexed project returns `[]` (model not loaded); any embedder error -> 503 `search unavailable: ...`. Chapter scope filters before ranking. Brute-force `matrix @ query` in `search.rank`. UI: search box in the top bar, `/` focuses, Enter runs, Esc or the x clears; hits show ungrouped in rank order (Best/All ignored while searching); picking a chapter re-runs the search in that chapter; filter still applies. `FakeEmbedder.encode_text` is now deterministic (was broken).
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added

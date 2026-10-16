@@ -70,8 +70,29 @@ async function showProject(id, jobId) {
   const grid = el("div", { className: "grid" });
   const side = el("nav", { className: "sidebar" });
   let chapterId = null;
-  const loadGrid = async () =>
-    showGrid(grid, await api(`/projects/${id}/photos` + (chapterId ? `?chapter=${chapterId}` : "")));
+  const searchMsg = el("span", { className: "muted" });
+  const loadGrid = async () => {
+    const ch = chapterId ? `chapter=${chapterId}` : "";
+    searchQ = searchQ.trim();
+    searchMsg.textContent = "";
+    if (!searchQ) return showGrid(grid, await api(`/projects/${id}/photos` + (ch ? `?${ch}` : "")));
+    try {
+      const hits = await api(`/projects/${id}/search?q=${encodeURIComponent(searchQ)}&${ch}`);
+      showGrid(grid, hits);
+      searchMsg.textContent = hits.length ? `${hits.length} best matches` : "No matches. Index the photos first?";
+    } catch (e) {
+      searchQ = "";
+      searchBox.value = "";
+      await loadGrid();
+      searchMsg.textContent = e.message;
+    }
+  };
+  const searchBox = el("input", { type: "search", id: "search", placeholder: "Search photos (/)", title: "Plain-English search, e.g. people dancing" });
+  searchBox.onkeydown = (ev) => {
+    if (ev.key === "Enter") { searchQ = searchBox.value; loadGrid().catch(showError); }
+    else if (ev.key === "Escape") { searchBox.value = ""; searchBox.blur(); if (searchQ) { searchQ = ""; loadGrid().catch(showError); } }
+  };
+  searchBox.onsearch = () => { if (!searchBox.value && searchQ) { searchQ = ""; loadGrid().catch(showError); } }; // the x button
   const counters = el("span", { className: "muted counters" });
   let chapterProject = null;
   refreshCounts = () => chapterProject && loadChapters(chapterProject);
@@ -162,7 +183,7 @@ async function showProject(id, jobId) {
   const filterSel = el("select", { title: "Show photos by review state", onchange: () => { filter = filterSel.value; renderGrid(); } },
     ...[["all", "All"], ["unreviewed", "Unreviewed"], ["keep", "Kept"], ["reject", "Rejected"]]
       .map(([v, t]) => el("option", { value: v, textContent: t, selected: v === filter })));
-  indexBox.append(" ", filterSel, " ", counters, " ", viewBtn, " ", el("label", { title: "Move to the next photo after P or X" }, adv, " Auto-advance"));
+  indexBox.append(" ", searchBox, " ", searchMsg, " ", filterSel, " ", counters, " ", viewBtn, " ", el("label", { title: "Move to the next photo after P or X" }, adv, " Auto-advance"));
   app.append(indexBox, el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
   const bar = el("progress", { max: 1, value: 0 });
@@ -189,6 +210,7 @@ let current = -1; // overlay index, -1 = closed
 let selected = 0; // grid selection
 let autoAdvance = true;
 let filter = "all";
+let searchQ = ""; // active search: grid shows ranked hits, ungrouped
 let refreshCounts = () => {};
 const undoStack = [];
 let cells = [];
@@ -277,7 +299,7 @@ function visiblePhotos() {
 }
 
 function groupedPhotos() {
-  if (view === "all") return allPhotos;
+  if (view === "all" || searchQ) return allPhotos;
   const groups = new Map();
   for (const p of allPhotos) {
     if (!groups.has(p.group_id)) groups.set(p.group_id, []);
@@ -299,10 +321,10 @@ function renderGrid() {
   for (const p of allPhotos) sizes.set(p.group_id, (sizes.get(p.group_id) || 0) + 1);
   gridEl.replaceChildren(...photos.map((p, i) => {
     const img = el("img", { loading: "lazy", alt: p.filename, src: `/api/photos/${p.id}/thumb` });
-    const cell = el("div", { className: "cell" + (view === "best" && expanded.has(p.group_id) && p.is_group_pick ? " pick" : "") }, img);
+    const cell = el("div", { className: "cell" + (view === "best" && !searchQ && expanded.has(p.group_id) && p.is_group_pick ? " pick" : "") }, img);
     if (p.time_source === "mtime") cell.append(el("span", { className: "badge", title: "No EXIF time: using file modified time", textContent: "!" }));
     const n = sizes.get(p.group_id);
-    if (view === "best" && n > 1 && (p.is_group_pick || expanded.has(p.group_id))) {
+    if (view === "best" && !searchQ && n > 1 && (p.is_group_pick || expanded.has(p.group_id))) {
       const open = expanded.has(p.group_id);
       cell.append(el("button", {
         className: "count",
@@ -331,6 +353,12 @@ function showGrid(grid, list) {
 }
 
 document.addEventListener("keydown", (e) => {
+  const box = document.getElementById("search");
+  if (e.key === "/" && box && !e.target.matches("input, textarea")) {
+    box.focus();
+    e.preventDefault();
+    return;
+  }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.target.matches("input, textarea")) {
     undo();
     e.preventDefault();
@@ -366,6 +394,7 @@ function route() {
   expanded.clear();
   undoStack.length = 0;
   filter = "all";
+  searchQ = "";
   refreshCounts = () => {};
   openPreview(-1);
   const m = location.hash.match(/^#\/p\/([^/]+)(?:\/([^/]+))?$/);

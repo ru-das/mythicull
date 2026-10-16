@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -13,7 +13,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from mythicull import db, embed, grouping, ingest, jobs
+from mythicull import config, db, embed, grouping, ingest, jobs, search
 
 
 @asynccontextmanager
@@ -271,16 +271,23 @@ class PhotoOut(BaseModel):
     stars: int
 
 
+_PHOTO_SQL = (
+    "SELECT p.id, p.filename, p.capture_time, p.time_source, p.width, p.height, p.chapter_id, p.group_id, p.is_group_pick,"
+    " d.status, COALESCE(d.stars, 0) AS stars FROM photos p LEFT JOIN decisions d ON d.photo_id = p.id WHERE p.project_id = ?"
+)
+
+
+def _require_project(conn: object, project_id: str) -> None:
+    if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:  # type: ignore[attr-defined]
+        raise HTTPException(404, "project not found")
+
+
 @app.get("/api/projects/{project_id}/photos")
 def list_photos(project_id: str, chapter: str | None = None) -> list[PhotoOut]:
     conn = db.connect()
     try:
-        if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
-            raise HTTPException(404, "project not found")
-        sql = (
-            "SELECT p.id, p.filename, p.capture_time, p.time_source, p.width, p.height, p.chapter_id, p.group_id, p.is_group_pick,"
-            " d.status, COALESCE(d.stars, 0) AS stars FROM photos p LEFT JOIN decisions d ON d.photo_id = p.id WHERE p.project_id = ?"
-        )
+        _require_project(conn, project_id)
+        sql = _PHOTO_SQL
         args: list[str] = [project_id]
         if chapter:
             sql += " AND p.chapter_id = ?"
@@ -289,6 +296,30 @@ def list_photos(project_id: str, chapter: str | None = None) -> list[PhotoOut]:
     finally:
         conn.close()
     return [PhotoOut(**dict(r)) for r in rows]
+
+
+@app.get("/api/projects/{project_id}/search")
+def search_photos(
+    project_id: str, q: str, k: int = Query(default=config.DEFAULT_SEARCH_K, ge=1, le=500), chapter: str | None = None
+) -> list[PhotoOut]:
+    """Photos best match first. The ranking is the only meaning of position: scores are not returned."""
+    if not q.strip():
+        raise HTTPException(400, "query is blank")
+    conn = db.connect()
+    try:
+        _require_project(conn, project_id)
+        rows = {
+            r["id"]: r
+            for r in conn.execute(_PHOTO_SQL + (" AND p.chapter_id = ?" if chapter else ""), [project_id] + ([chapter] if chapter else []))
+        }
+    finally:
+        conn.close()
+    try:
+        embedder = embed.get_embedder()
+        ids = search.rank(project_id, embedder, q.strip(), k, set(rows) if chapter else None)
+    except Exception as e:  # e.g. model download blocked; browsing must keep working
+        raise HTTPException(503, f"search unavailable: {e}") from e
+    return [PhotoOut(**dict(rows[i])) for i in ids if i in rows]
 
 
 class DecisionIn(BaseModel):

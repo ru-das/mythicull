@@ -54,7 +54,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: a 100-photo keyboard-only cull survives a server restart.
 
 ## M6. Search
-- [ ] **M6.1 Search.** `search.py`, `GET /projects/{id}/search`, `/` to focus, results in the grid, optional chapter scope, clear search.
+- [x] **M6.1 Search.** `search.py`, `GET /projects/{id}/search`, `/` to focus, results in the grid, optional chapter scope, clear search.
   Done when: tests with the fake embedder confirm ranking order; the real-shoot "people dancing" check is recorded.
 
 ## M7. Export

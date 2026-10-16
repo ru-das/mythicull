@@ -58,4 +58,12 @@ class FakeEmbedder:
         return np.stack(out)
 
     def encode_text(self, texts):
-        return self.encode_images([])
+        import hashlib
+
+        import numpy as np
+
+        out = []
+        for t in texts:
+            v = np.random.default_rng(int.from_bytes(hashlib.sha256(t.encode()).digest()[:4], "big")).normal(size=768).astype(np.float32)
+            out.append(v / np.linalg.norm(v))
+        return np.stack(out)
