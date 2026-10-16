@@ -7,7 +7,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 ## M0. Setup and model spike
 - [x] **M0.1 Scaffold.** `requirements.txt`, `mythicull/` package with empty modules from `CLAUDE.md`, `web/` placeholder, `tests/` with a `conftest.py` that registers the `model` marker and builds a fixture folder of synthetic JPEGs with EXIF timestamps, `.gitignore` (venv, data dir, `*.npy`, photos, weights).
   Done when: `pip install -r requirements.txt` works and `pytest -q` passes with one smoke test.
-- [ ] **M0.2 Model spike.** `scripts/model_spike.py <folder>` loads `google/embeddinggemma-2` (no float16), embeds up to 20 images, prints seconds per image, checks for NaN, and prints the top 3 photos for "people dancing", "a group photo" and "a speech at a microphone". Find the text query prompt on the model card.
+- [x] **M0.2 Model spike.** `scripts/model_spike.py <folder>` loads `google/embeddinggemma-2` (no float16), embeds up to 20 images, prints seconds per image, checks for NaN, and prints the top 3 photos for "people dancing", "a group photo" and "a speech at a microphone". Find the text query prompt on the model card.
   Done when: it runs on a real folder; the dtype, device, seconds per image and exact query prompt are recorded in `docs/PROGRESS.md`.
 
 ## M1. Backend foundation
