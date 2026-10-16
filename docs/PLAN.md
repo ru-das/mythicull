@@ -67,7 +67,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 
 ## M8. Demo readiness
 - [x] **M8.1 End-to-end run.** Full flow on a real shoot with the server restarted midway. Record photos in, chapters, groups, picks kept, minutes spent and index time in `docs/PROGRESS.md`. Done on public HDR+ frames via Colab; review time not measured.
-- [ ] **M8.2 README.** What it does, why it runs on an open-weight model (privacy, offline, no per-image cost), setup, usage, keyboard shortcuts, limitations.
+- [x] **M8.2 README.** What it does, why it runs on an open-weight model (privacy, offline, no per-image cost), setup, usage, keyboard shortcuts, limitations.
 - [ ] **M8.3 Polish.** Fix the top issues found in M8.1. Empty states and error messages for missing folder, model download failure and no supported photos.
 
 ## Stretch (only after M8, in this order)

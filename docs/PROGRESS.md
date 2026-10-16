@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M8.2 README**
-- Last completed: M8.1 end-to-end run on Colab (354 public HDR+ frames, 4 chapters, 39 groups, index resumed after a kill, decisions survived a restart; review time not measured). Before that M7.3 Export UI (pytest green; headless Chromium with mocked API: both exports start, summary and skip list shown, copy body correct, no JS errors). Manual check still open: sidecars from a real shoot in Lightroom Classic or darktable. Before that M7.2 Copy export (pytest green, tests only). Before that M7.1 XMP export (pytest green; real Lightroom/darktable check is M7.3). Before that M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
+- Next task: **M8.3 Polish**
+- Last completed: M8.2 README (docs only; pytest green; keys and env vars checked against `web/app.js` and `config.py`). Before that M8.1 end-to-end run on Colab (354 public HDR+ frames, 4 chapters, 39 groups, index resumed after a kill, decisions survived a restart; review time not measured). Before that M7.3 Export UI (pytest green; headless Chromium with mocked API: both exports start, summary and skip list shown, copy body correct, no JS errors). Manual check still open: sidecars from a real shoot in Lightroom Classic or darktable. Before that M7.2 Copy export (pytest green, tests only). Before that M7.1 XMP export (pytest green; real Lightroom/darktable check is M7.3). Before that M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
 - Blockers: none
 
 ## Tuned values and model facts
