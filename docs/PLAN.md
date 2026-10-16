@@ -21,7 +21,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 ## M2. Import
 - [x] **M2.1 Scan.** Recursive scan, supported extensions, RAW+JPEG pairing, skip list with reasons.
   Done when: tests cover pairing, mixed-case extensions and an unreadable file.
-- [ ] **M2.2 Metadata.** Capture time with sub-seconds and both fallbacks, camera model, dimensions, orientation.
+- [x] **M2.2 Metadata.** Capture time with sub-seconds and both fallbacks, camera model, dimensions, orientation.
   Done when: tests cover EXIF time, sub-second ordering and the mtime fallback.
 - [ ] **M2.3 Thumbnails and previews.** JPEG and RAW embedded previews, orientation applied, cached in the data dir.
   Done when: tests confirm sizes and orientation; a second run regenerates nothing.

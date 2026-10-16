@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M2.2 Metadata**
-- Last completed: M2.1 Scan
+- Next task: **M2.3 Thumbnails and previews**
+- Last completed: M2.2 Metadata
 - Blockers: none
 
 ## Tuned values and model facts
@@ -24,6 +24,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: jobs run one daemon thread each with their own DB connection (no queue). Statuses: queued, running, done, failed, cancelled, interrupted. Startup marks leftover queued/running jobs `interrupted`. `failures` is a JSON list of `{item, error}`; a raised exception adds `{item: null, error}` and sets `failed`. Cancel is a DB flag the job polls via `ctx.cancelled`. Routes live under `/api`; `main.py` has only the jobs routes until M1.3.
 - 2026-10-16: health route is `/api/health` (per PLAN; SPEC says `/health` under `/api` prefix, same thing). Static `web/` mounted at `/` last in `main.py`; add new routes above it.
 - 2026-10-16: `ingest.scan_folder(root)` returns `ScanResult(items, skipped)`; item `path` is RAW when paired. Readability checked by reading 1 byte. Dotfiles are not special-cased (unsupported ext, or ok if named .jpg).
+- 2026-10-16: `ingest.read_metadata(path, companion)` returns `PhotoMeta`. `capture_time` is naive local ISO with ms (sorts as text); `time_source` is `exif` (DateTimeOriginal), `exif_modified` (Image DateTime) or `mtime`. M3.2 badge should warn on `mtime` only. RAW falls back to its JPEG companion for tags. Sub-second digits are a decimal fraction ("9" = .9 s). Parsing uses exifread; RAW dimensions via rawpy (untested on real RAW).
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
