@@ -90,3 +90,17 @@ def test_originals_untouched(client, photo_folder):
     wait(client, job)
     after = sorted((p.name, p.stat().st_mtime_ns, p.stat().st_size) for p in photo_folder.rglob("*") if p.is_file())
     assert before == after
+
+
+def test_photo_list_and_images(client, photo_folder):
+    pid, job = run_import(client, photo_folder)
+    assert wait(client, job)["status"] == "done"
+    photos = client.get(f"/api/projects/{pid}/photos").json()
+    assert len(photos) == 6
+    times = [p["capture_time"] for p in photos]
+    assert times == sorted(times)
+    for kind in ("thumb", "preview"):
+        r = client.get(f"/api/photos/{photos[0]['id']}/{kind}")
+        assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
+    assert client.get("/api/photos/nope/thumb").status_code == 404
+    assert client.get("/api/projects/nope/photos").status_code == 404

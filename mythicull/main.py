@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -153,6 +154,52 @@ def get_project(project_id: str) -> ProjectOut:
     if row is None:
         raise HTTPException(404, "project not found")
     return _project_out(row)
+
+
+class PhotoOut(BaseModel):
+    id: str
+    filename: str
+    capture_time: str | None
+    time_source: str | None
+    width: int | None
+    height: int | None
+
+
+@app.get("/api/projects/{project_id}/photos")
+def list_photos(project_id: str) -> list[PhotoOut]:
+    conn = db.connect()
+    try:
+        if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+            raise HTTPException(404, "project not found")
+        rows = conn.execute(
+            "SELECT id, filename, capture_time, time_source, width, height FROM photos"
+            " WHERE project_id = ? ORDER BY capture_time, filename",
+            (project_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [PhotoOut(**dict(r)) for r in rows]
+
+
+def _photo_image(photo_id: str, column: str) -> FileResponse:
+    conn = db.connect()
+    try:
+        row = conn.execute(f"SELECT {column} AS p FROM photos WHERE id = ?", (photo_id,)).fetchone()  # column is a literal
+    finally:
+        conn.close()
+    if row is None or not row["p"] or not Path(row["p"]).is_file():
+        raise HTTPException(404, "image not found")
+    return FileResponse(row["p"], media_type="image/jpeg", headers={"Cache-Control": "max-age=31536000, immutable"})
+
+
+@app.get("/api/photos/{photo_id}/thumb")
+def photo_thumb(photo_id: str) -> FileResponse:
+    return _photo_image(photo_id, "thumb_path")
+
+
+@app.get("/api/photos/{photo_id}/preview")
+def photo_preview(photo_id: str) -> FileResponse:
+    return _photo_image(photo_id, "preview_path")
 
 
 class HealthOut(BaseModel):

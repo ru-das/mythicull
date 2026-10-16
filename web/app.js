@@ -64,11 +64,14 @@ async function showProject(id, jobId) {
   const head = el("h2", { textContent: "Loading…" });
   const status = el("div");
   app.replaceChildren(head, status);
+  const grid = el("div", { className: "grid" });
   const render = async () => {
     const p = await api(`/projects/${id}`);
     head.textContent = p.name;
     status.replaceChildren(summaryView(p));
+    showGrid(grid, await api(`/projects/${id}/photos`));
   };
+  app.append(grid);
   if (!jobId) return render();
   const bar = el("progress", { max: 1, value: 0 });
   const label = el("p", { className: "muted" });
@@ -89,12 +92,62 @@ async function showProject(id, jobId) {
   await tick();
 }
 
+let photos = [];
+let current = -1;
+const overlay = el("div", { className: "overlay", hidden: true });
+const bigImg = el("img");
+const caption = el("div", { className: "caption" });
+overlay.append(bigImg, caption);
+overlay.onclick = () => openPreview(-1);
+document.body.append(overlay);
+
+function openPreview(i) {
+  if (i < 0 || i >= photos.length) {
+    current = -1;
+    overlay.hidden = true;
+    return;
+  }
+  current = i;
+  const p = photos[i];
+  bigImg.src = `/api/photos/${p.id}/preview`;
+  caption.textContent = `${p.filename}  ${p.capture_time || ""}${p.time_source === "mtime" ? "  (file time, not EXIF)" : ""}`;
+  overlay.hidden = false;
+}
+
+function showGrid(grid, list) {
+  photos = list;
+  current = -1;
+  overlay.hidden = true;
+  grid.replaceChildren(...list.map((p, i) => {
+    const img = el("img", { loading: "lazy", alt: p.filename, src: `/api/photos/${p.id}/thumb` });
+    const cell = el("div", { className: "cell" }, img);
+    if (p.time_source === "mtime") cell.append(el("span", { className: "badge", title: "No EXIF time: using file modified time", textContent: "!" }));
+    cell.onclick = () => openPreview(i);
+    return cell;
+  }));
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!photos.length || e.target.matches("input, textarea")) return;
+  if (current < 0) {
+    if (e.key === "Enter") openPreview(0);
+    return;
+  }
+  const next = { ArrowRight: current + 1, ArrowDown: current + 1, ArrowLeft: current - 1, ArrowUp: current - 1 }[e.key];
+  if (next !== undefined) openPreview(Math.min(Math.max(next, 0), photos.length - 1));
+  else if (e.key === "Escape" || e.key === "Enter" || e.key === " ") openPreview(-1);
+  else return;
+  e.preventDefault();
+});
+
 function showError(e) {
   app.replaceChildren(el("p", { className: "error", textContent: e.message }));
 }
 
 function route() {
   clearTimeout(pollTimer);
+  photos = [];
+  openPreview(-1);
   const m = location.hash.match(/^#\/p\/([^/]+)(?:\/([^/]+))?$/);
   (m ? showProject(m[1], m[2]) : showList()).catch(showError);
 }

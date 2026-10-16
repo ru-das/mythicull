@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M3.2 Grid and preview**
-- Last completed: M3.1 Projects screen
+- Next task: **M4.1 Chapters**
+- Last completed: M3.2 Grid and preview (code done; real 300+ photo scroll check pending, see Known issues)
 - Blockers: none
 
 ## Tuned values and model facts
@@ -28,6 +28,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: `ingest.make_previews(path, companion, out_dir, photo_id, orientation)` writes `<id>_thumb.jpg` (320) and `<id>_preview.jpg` (1600), q85, never upscales, skips if both exist (source not touched). RAW uses the larger of embedded preview and JPEG companion. Orientation: EXIF in the preview wins, else the original's orientation. Raises `PreviewError` when no preview; M2.4 must record it as skip reason/`import_error`. RAW path tested with mocks only, not real RAWs.
 - 2026-10-16: `POST /api/projects` {name, folder} -> {project, job_id}; 400 on blank name or missing folder. `ingest.import_project(ctx, project_id)` is the job body: only paths not already in `photos` are added, so existing rows, decisions and cached images are untouched. Migration 2 adds `projects.last_import` (JSON summary: found, imported, already_present, skipped[{path, reason}]), returned by project routes with `photo_count`. Unsupported/unreadable/no-preview files are skipped (not inserted) and also appear in job `failures`. Job `total` = supported photos found. Re-import has no endpoint yet (POST /projects always makes a new project); M3.1 may need one. Images live in `<data_dir>/projects/<id>/images/`.
 - 2026-10-16: UI is hash-routed (`#/` list, `#/p/<id>` project, `#/p/<id>/<job_id>` project with live import progress, polls `/api/jobs/<id>` every 500 ms). Reopening a project mid-import shows no progress (no job lookup by project yet) and no re-import button. Not browser-tested here: no playwright in the dev container.
+- 2026-10-16: `GET /api/projects/{id}/photos` returns all photos by capture_time (no chapter/view/filter params yet: added in M4.1/M4.3/M5.2). `GET /api/photos/{id}/thumb|preview` serve cached JPEGs with immutable cache headers. Grid uses native `loading=lazy` on `<img>`. Keys: Enter opens first photo, arrows move, Esc/Enter/Space close. Amber `!` badge when `time_source == mtime`.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
@@ -36,6 +37,7 @@ fastapi, uvicorn, pydantic, sentence-transformers, torch, rawpy, Pillow, exifrea
 ## Known issues
 - M0.2: query prompt not verified against the model card. 32 s/image on CPU is too slow for a real shoot: re-time on GPU and check batch size and input resolution before M4.2. No NaNs. Top-3 for all three test queries were from the matching category folder.
 - M1.2: no per-project job lock. M4.2 must refuse a second index job on a project that already has one active.
+- M3.2: not run in a browser; a real 300+ photo shoot has not been scrolled. Photo list is one unpaginated JSON array (fine to ~3000).
 - TestClient warns `httpx` with starlette is deprecated (upstream, harmless).
 <!-- Open problems to fix before the demo. -->
 
