@@ -45,7 +45,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **M4.3a Grouping backend.** Groups by 10 s window and `dup_threshold`, sharpest pick, regroup after chapters, indexing and `dup_threshold` change (`PATCH /projects/{id}`). Photo listing returns `group_id`, `is_group_pick`.
   Done when: the burst test passes.
 - [x] **M4.3b Best/All UI.** Best/All toggle, count badges, click badge to expand a group.
-- [ ] **M4.3c Tune `dup_threshold`.** Check on the real shoot, record in `docs/PROGRESS.md` (manual).
+- [x] **M4.3c Tune `dup_threshold`.** Check on the real shoot, record in `docs/PROGRESS.md` (manual). Done on HDR+ bursts (easy cases only); recheck on a real shoot at M8.1.
 
 ## M5. Review
 - [ ] **M5.1 Decisions.** `PUT /photos/{id}/decision`, decision state in photo listings, P/X/U and 0 to 5 keys, auto-advance, keep/reject borders and star display.
