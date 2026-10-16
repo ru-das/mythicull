@@ -29,7 +29,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: tests import the fixture folder twice and photo counts and decisions are unchanged the second time.
 
 ## M3. Browsing UI
-- [ ] **M3.1 Projects screen.** Create a project (name + folder path), list projects, open one, show import progress and summary.
+- [x] **M3.1 Projects screen.** Create a project (name + folder path), list projects, open one, show import progress and summary.
 - [ ] **M3.2 Grid and preview.** `GET /projects/{id}/photos`, thumb and preview endpoints, lazy-loading grid, large preview overlay, arrow-key navigation, mtime-time warning badge.
   Done when: a real 300+ photo shoot scrolls smoothly and opens previews.
 

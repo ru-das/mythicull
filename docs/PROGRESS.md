@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M3.1 Projects screen**
-- Last completed: M2.4 Project API and import job
+- Next task: **M3.2 Grid and preview**
+- Last completed: M3.1 Projects screen
 - Blockers: none
 
 ## Tuned values and model facts
@@ -27,6 +27,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: `ingest.read_metadata(path, companion)` returns `PhotoMeta`. `capture_time` is naive local ISO with ms (sorts as text); `time_source` is `exif` (DateTimeOriginal), `exif_modified` (Image DateTime) or `mtime`. M3.2 badge should warn on `mtime` only. RAW falls back to its JPEG companion for tags. Sub-second digits are a decimal fraction ("9" = .9 s). Parsing uses exifread; RAW dimensions via rawpy (untested on real RAW).
 - 2026-10-16: `ingest.make_previews(path, companion, out_dir, photo_id, orientation)` writes `<id>_thumb.jpg` (320) and `<id>_preview.jpg` (1600), q85, never upscales, skips if both exist (source not touched). RAW uses the larger of embedded preview and JPEG companion. Orientation: EXIF in the preview wins, else the original's orientation. Raises `PreviewError` when no preview; M2.4 must record it as skip reason/`import_error`. RAW path tested with mocks only, not real RAWs.
 - 2026-10-16: `POST /api/projects` {name, folder} -> {project, job_id}; 400 on blank name or missing folder. `ingest.import_project(ctx, project_id)` is the job body: only paths not already in `photos` are added, so existing rows, decisions and cached images are untouched. Migration 2 adds `projects.last_import` (JSON summary: found, imported, already_present, skipped[{path, reason}]), returned by project routes with `photo_count`. Unsupported/unreadable/no-preview files are skipped (not inserted) and also appear in job `failures`. Job `total` = supported photos found. Re-import has no endpoint yet (POST /projects always makes a new project); M3.1 may need one. Images live in `<data_dir>/projects/<id>/images/`.
+- 2026-10-16: UI is hash-routed (`#/` list, `#/p/<id>` project, `#/p/<id>/<job_id>` project with live import progress, polls `/api/jobs/<id>` every 500 ms). Reopening a project mid-import shows no progress (no job lookup by project yet) and no re-import button. Not browser-tested here: no playwright in the dev container.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
