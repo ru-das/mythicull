@@ -48,7 +48,13 @@ class GemmaEmbedder:
 
     def _encode(self, items: list) -> np.ndarray:
         if self._model is None:
-            self._model = self._load()
+            try:
+                self._model = self._load()
+            except Exception as e:
+                raise RuntimeError(
+                    f"Could not load model {self.model_id}. The first run needs internet to download it once; "
+                    f"check your connection and try again. ({e})"
+                ) from e
         out = self._model.encode(items, batch_size=config.batch_size(), normalize_embeddings=True, convert_to_numpy=True)
         return np.asarray(out, dtype=np.float32)
 

@@ -234,6 +234,8 @@ def import_project(ctx: jobs.JobContext, project_id: str) -> None:
     conn = ctx.conn
     folder = Path(conn.execute("SELECT folder FROM projects WHERE id = ?", (project_id,)).fetchone()["folder"])
     out_dir = config.data_dir() / "projects" / project_id / "images"
+    if not folder.is_dir():  # os.walk would silently find nothing
+        raise FileNotFoundError(f"photo folder not found: {folder}")
     ctx.stage("scanning")
     scan = scan_folder(folder)
     skipped = [{"path": str(p), "reason": r} for p, r in scan.skipped]

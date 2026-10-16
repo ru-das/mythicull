@@ -57,3 +57,12 @@ def test_search_model_unavailable(client, project, monkeypatch):  # noqa: F811
     _use(monkeypatch, Broken())
     r = client.get(f"/api/projects/{project}/search", params={"q": "x"})
     assert r.status_code == 503 and "offline" in r.json()["detail"]
+
+
+def test_model_load_failure_message(monkeypatch):
+    from mythicull import embed
+
+    e = embed.GemmaEmbedder()
+    monkeypatch.setattr(e, "_load", lambda: (_ for _ in ()).throw(OSError("offline")))
+    with pytest.raises(RuntimeError, match="needs internet"):
+        e.encode_text(["x"])

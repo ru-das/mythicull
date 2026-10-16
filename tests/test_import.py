@@ -104,3 +104,16 @@ def test_photo_list_and_images(client, photo_folder):
         assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
     assert client.get("/api/photos/nope/thumb").status_code == 404
     assert client.get("/api/projects/nope/photos").status_code == 404
+
+
+def test_import_fails_clearly_when_folder_vanished(client, photo_folder, tmp_path):
+    gone = tmp_path / "gone"
+    shutil.copytree(photo_folder, gone)
+    pid, job = run_import(client, gone)
+    wait(client, job)
+    shutil.rmtree(gone)
+    from mythicull import ingest, jobs
+
+    j = wait(client, jobs.start("import", lambda ctx: ingest.import_project(ctx, pid), pid))
+    assert j["status"] == "failed"
+    assert "photo folder not found" in j["failures"][-1]["error"]

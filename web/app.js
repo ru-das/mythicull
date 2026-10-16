@@ -52,6 +52,9 @@ function summaryView(p) {
     return box;
   }
   box.append(el("p", { textContent: `Found ${s.found}, imported ${s.imported}, already present ${s.already_present}, skipped ${s.skipped.length}.` }));
+  if (!p.photo_count) {
+    box.append(el("p", { className: "error", textContent: `No supported photos found in this folder. MythiCull reads JPEG and RAW (CR2, CR3, NEF, ARW, RAF, DNG). Check the folder path and create the project again.` }));
+  }
   if (s.skipped.length) {
     const ul = el("ul");
     for (const k of s.skipped) ul.append(el("li", { textContent: `${k.path}: ${k.reason}` }));
@@ -228,7 +231,7 @@ async function showProject(id, jobId) {
       pollTimer = setTimeout(() => tick().catch(showError), 500);
     } else {
       await render();
-      if (j.status !== "done") status.prepend(el("p", { className: "error", textContent: `Import ${j.status}.` }));
+      if (j.status !== "done") status.prepend(el("p", { className: "error", textContent: `Import ${j.status}.` + (j.status === "failed" && j.failures.length ? ` ${j.failures[j.failures.length - 1].error}` : "") }));
     }
   };
   head.textContent = "Importing…";
