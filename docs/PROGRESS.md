@@ -4,7 +4,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 
 ## Current state
 - Next task: **M4.1 Chapters**
-- Last completed: M3.2 Grid and preview (code done; real 300+ photo scroll check pending, see Known issues)
+- Last completed: M3.2 Grid and preview (headless Chromium check on 400 synthetic photos passed; real-shoot check still pending, see Known issues)
 - Blockers: none
 
 ## Tuned values and model facts
@@ -37,7 +37,7 @@ fastapi, uvicorn, pydantic, sentence-transformers, torch, rawpy, Pillow, exifrea
 ## Known issues
 - M0.2: query prompt not verified against the model card. 32 s/image on CPU is too slow for a real shoot: re-time on GPU and check batch size and input resolution before M4.2. No NaNs. Top-3 for all three test queries were from the matching category folder.
 - M1.2: no per-project job lock. M4.2 must refuse a second index job on a project that already has one active.
-- M3.2: not run in a browser; a real 300+ photo shoot has not been scrolled. Photo list is one unpaginated JSON array (fine to ~3000).
+- M3.2: checked in headless Chromium (cloud container) with 400 synthetic 3000x2000 JPEGs: import 49 s, 400 cells, 216 thumbs loaded after scrolling (lazy works), preview and arrow keys work, no JS errors. A real shoot has not been scrolled. Photo list is one unpaginated JSON array (fine to ~3000).
 - TestClient warns `httpx` with starlette is deprecated (upstream, harmless).
 <!-- Open problems to fix before the demo. -->
 
