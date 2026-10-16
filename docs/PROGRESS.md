@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M2.1 Scan**
-- Last completed: M1.3 App shell
+- Next task: **M2.2 Metadata**
+- Last completed: M2.1 Scan
 - Blockers: none
 
 ## Tuned values and model facts
@@ -23,6 +23,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: `config.data_dir()`/`batch_size()` read env per call (tests set env). `db.connect()` migrates on open; `photos` has UNIQUE(project_id, path) for re-import. `camera_offsets` created now though S3-only.
 - 2026-10-16: jobs run one daemon thread each with their own DB connection (no queue). Statuses: queued, running, done, failed, cancelled, interrupted. Startup marks leftover queued/running jobs `interrupted`. `failures` is a JSON list of `{item, error}`; a raised exception adds `{item: null, error}` and sets `failed`. Cancel is a DB flag the job polls via `ctx.cancelled`. Routes live under `/api`; `main.py` has only the jobs routes until M1.3.
 - 2026-10-16: health route is `/api/health` (per PLAN; SPEC says `/health` under `/api` prefix, same thing). Static `web/` mounted at `/` last in `main.py`; add new routes above it.
+- 2026-10-16: `ingest.scan_folder(root)` returns `ScanResult(items, skipped)`; item `path` is RAW when paired. Readability checked by reading 1 byte. Dotfiles are not special-cased (unsupported ext, or ok if named .jpg).
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added

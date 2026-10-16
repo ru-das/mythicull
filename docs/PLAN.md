@@ -19,7 +19,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: `uvicorn` starts and http://localhost:8000 shows the placeholder page.
 
 ## M2. Import
-- [ ] **M2.1 Scan.** Recursive scan, supported extensions, RAW+JPEG pairing, skip list with reasons.
+- [x] **M2.1 Scan.** Recursive scan, supported extensions, RAW+JPEG pairing, skip list with reasons.
   Done when: tests cover pairing, mixed-case extensions and an unreadable file.
 - [ ] **M2.2 Metadata.** Capture time with sub-seconds and both fallbacks, camera model, dimensions, orientation.
   Done when: tests cover EXIF time, sub-second ordering and the mtime fallback.
