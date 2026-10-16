@@ -12,7 +12,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from mythicull import db, grouping, ingest, jobs
+from mythicull import db, embed, grouping, ingest, jobs
 
 
 @asynccontextmanager
@@ -223,6 +223,26 @@ def rename_chapter(chapter_id: str, body: ChapterPatch) -> ChapterOut:
         return _chapter_out(conn.execute(_CHAPTER_SQL + " WHERE c.id = ?", (chapter_id,)).fetchone())
     finally:
         conn.close()
+
+
+class JobStartedOut(BaseModel):
+    job_id: str
+
+
+@app.post("/api/projects/{project_id}/index")
+def start_index(project_id: str) -> JobStartedOut:
+    conn = db.connect()
+    try:
+        if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+            raise HTTPException(404, "project not found")
+        busy = conn.execute(
+            "SELECT 1 FROM jobs WHERE project_id = ? AND kind = 'index' AND status IN (?, ?)", (project_id, *jobs.ACTIVE)
+        ).fetchone()
+    finally:
+        conn.close()
+    if busy:
+        raise HTTPException(409, "an index job is already running for this project")
+    return JobStartedOut(job_id=jobs.start("index", lambda ctx: embed.index_project(ctx, project_id), project_id))
 
 
 class PhotoOut(BaseModel):

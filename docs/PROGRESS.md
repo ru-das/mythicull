@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M4.2 Indexing job**
-- Last completed: M4.1 Chapters (tests + headless Chromium check of sidebar, rename and gap change on 7 synthetic photos; M3.2 real-shoot check still pending, see Known issues)
+- Next task: **M4.2b Indexing UI**
+- Last completed: M4.2a Indexing backend (fake-embedder tests: full index, resume, cancel, 409; real model not run here)
 - Blockers: none
 
 ## Tuned values and model facts
@@ -30,6 +30,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: UI is hash-routed (`#/` list, `#/p/<id>` project, `#/p/<id>/<job_id>` project with live import progress, polls `/api/jobs/<id>` every 500 ms). Reopening a project mid-import shows no progress (no job lookup by project yet) and no re-import button. Not browser-tested here: no playwright in the dev container.
 - 2026-10-16: `GET /api/projects/{id}/photos` returns all photos by capture_time (no chapter/view/filter params yet: added in M4.1/M4.3/M5.2). `GET /api/photos/{id}/thumb|preview` serve cached JPEGs with immutable cache headers. Grid uses native `loading=lazy` on `<img>`. Keys: Enter opens first photo, arrows move, Esc/Enter/Space close. Amber `!` badge when `time_source == mtime`.
 - 2026-10-16: chapters (`grouping.py`): gap strictly > `chapter_gap_minutes` splits; chapters under 3 photos merge into the nearer neighbour in time (tie: earlier), repeated until none are small. `regenerate_chapters` runs at the end of every import job and synchronously in `PATCH /api/projects/{id}` (timestamps only, fast). It deletes and recreates chapter rows, so chapter ids change on each regenerate. User titles carry to the new chapter with the largest photo overlap (each title and chapter used once; ties go to the first found). Blank rename reverts to the auto title. `GET /photos?chapter=<id>` filters. Sidebar shows title and photo count; kept count waits for M5.
+- 2026-10-16: indexing (`embed.py`): store is `<project>/embeddings.npy` + `embedding_ids.json` `{model_id, ids}`, rewritten whole per batch via tmp + `os.replace`, npy first then ids; load trusts ids and slices extra npy rows. Store from another model id counts as empty. Resume = skip ids in store (store is source of truth; `embedded=1` re-synced on start). Sharpness cached in `photos.sharpness`, computed only when NULL. Bad preview or NaN row -> `ctx.fail`, job continues. `POST /projects/{id}/index` -> `{job_id}`, 409 if an index job is active. Model singleton via `embed.get_embedder()`; tests set `embed._embedder`.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
@@ -37,7 +38,7 @@ fastapi, uvicorn, pydantic, sentence-transformers, torch, rawpy, Pillow, exifrea
 
 ## Known issues
 - M0.2: query prompt not verified against the model card. 32 s/image on CPU is too slow for a real shoot: re-time on GPU and check batch size and input resolution before M4.2. No NaNs. Top-3 for all three test queries were from the matching category folder.
-- M1.2: no per-project job lock. M4.2 must refuse a second index job on a project that already has one active.
+- M1.2: index jobs are locked per project (409); import has no lock and index is not blocked while import runs.
 - M3.2: checked in headless Chromium (cloud container) with 400 synthetic 3000x2000 JPEGs: import 49 s, 400 cells, 216 thumbs loaded after scrolling (lazy works), preview and arrow keys work, no JS errors. A real shoot has not been scrolled. Photo list is one unpaginated JSON array (fine to ~3000).
 - TestClient warns `httpx` with starlette is deprecated (upstream, harmless).
 <!-- Open problems to fix before the demo. -->

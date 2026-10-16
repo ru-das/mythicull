@@ -29,3 +29,33 @@ def photo_folder(tmp_path: Path) -> Path:
     for off, name in zip(offsets, names):
         make_jpeg(root / name, t0 + timedelta(seconds=off), subsec="00")
     return root
+
+
+class FakeEmbedder:
+    """Deterministic 768-d vectors from pixel bytes. `on_batch(n)` runs before each encode (n = 1-based)."""
+
+    model_id = "fake/model"
+
+    def __init__(self, on_batch=None) -> None:
+        self.on_batch = on_batch
+        self.batches = 0
+        self.images_seen = 0
+
+    def encode_images(self, images):
+        import hashlib
+
+        import numpy as np
+
+        self.batches += 1
+        if self.on_batch:
+            self.on_batch(self.batches)
+        self.images_seen += len(images)
+        out = []
+        for im in images:
+            seed = int.from_bytes(hashlib.sha256(im.tobytes() + str(im.size).encode()).digest()[:4], "big")
+            v = np.random.default_rng(seed).normal(size=768).astype(np.float32)
+            out.append(v / np.linalg.norm(v))
+        return np.stack(out)
+
+    def encode_text(self, texts):
+        return self.encode_images([])
