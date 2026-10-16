@@ -157,3 +157,7 @@ def index_project(ctx: jobs.JobContext, project_id: str) -> None:
                     conn.execute("UPDATE photos SET sharpness = ? WHERE id = ?", (sharp[i], i))
             conn.executemany("UPDATE photos SET embedded = 1 WHERE id = ?", [(i,) for i in good_ids])
         ctx.advance(len(ids))
+    ctx.stage("grouping")
+    from mythicull import grouping  # grouping imports embed
+
+    grouping.regroup(conn, project_id)

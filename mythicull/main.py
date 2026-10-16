@@ -158,6 +158,7 @@ def get_project(project_id: str) -> ProjectOut:
 
 class ProjectPatch(BaseModel):
     chapter_gap_minutes: int | None = Field(default=None, ge=1)
+    dup_threshold: float | None = Field(default=None, ge=0, le=1)
 
 
 @app.patch("/api/projects/{project_id}")
@@ -166,10 +167,15 @@ def patch_project(project_id: str, body: ProjectPatch) -> ProjectOut:
     try:
         if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
             raise HTTPException(404, "project not found")
+        if body.dup_threshold is not None:
+            with conn:
+                conn.execute("UPDATE projects SET dup_threshold = ? WHERE id = ?", (body.dup_threshold, project_id))
         if body.chapter_gap_minutes is not None:
             with conn:
                 conn.execute("UPDATE projects SET chapter_gap_minutes = ? WHERE id = ?", (body.chapter_gap_minutes, project_id))
-            grouping.regenerate_chapters(conn, project_id)
+            grouping.regenerate_chapters(conn, project_id)  # also regroups
+        elif body.dup_threshold is not None:
+            grouping.regroup(conn, project_id)
         return _project_out(conn.execute(_PROJECT_SQL + " WHERE p.id = ?", (project_id,)).fetchone())
     finally:
         conn.close()
@@ -253,6 +259,8 @@ class PhotoOut(BaseModel):
     width: int | None
     height: int | None
     chapter_id: str | None
+    group_id: str | None
+    is_group_pick: bool
 
 
 @app.get("/api/projects/{project_id}/photos")
@@ -261,7 +269,7 @@ def list_photos(project_id: str, chapter: str | None = None) -> list[PhotoOut]:
     try:
         if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
             raise HTTPException(404, "project not found")
-        sql = "SELECT id, filename, capture_time, time_source, width, height, chapter_id FROM photos WHERE project_id = ?"
+        sql = "SELECT id, filename, capture_time, time_source, width, height, chapter_id, group_id, is_group_pick FROM photos WHERE project_id = ?"
         args: list[str] = [project_id]
         if chapter:
             sql += " AND chapter_id = ?"

@@ -41,8 +41,11 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **M4.2b Indexing UI.** Index button and progress bar in the project view (reuse import progress polling).
 - [x] **M4.2c Real index.** Index the real shoot to completion; re-time s/image on GPU and check batch size.
   Done when: a real index of the shoot completes (manual).
-- [ ] **M4.3 Duplicate groups.** Groups by 10 s window and `dup_threshold`, sharpest pick, regroup on settings change, Best/All toggle with count badges and expand.
-  Done when: the burst test passes; `dup_threshold` is checked on the real shoot and recorded in `docs/PROGRESS.md`.
+- [ ] **M4.3 Duplicate groups.** Split into a, b, c below.
+- [x] **M4.3a Grouping backend.** Groups by 10 s window and `dup_threshold`, sharpest pick, regroup after chapters, indexing and `dup_threshold` change (`PATCH /projects/{id}`). Photo listing returns `group_id`, `is_group_pick`.
+  Done when: the burst test passes.
+- [ ] **M4.3b Best/All UI.** Best/All toggle, count badges, click badge to expand a group.
+- [ ] **M4.3c Tune `dup_threshold`.** Check on the real shoot, record in `docs/PROGRESS.md` (manual).
 
 ## M5. Review
 - [ ] **M5.1 Decisions.** `PUT /photos/{id}/decision`, decision state in photo listings, P/X/U and 0 to 5 keys, auto-advance, keep/reject borders and star display.

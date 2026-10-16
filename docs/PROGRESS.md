@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M4.3 Duplicate groups**
-- Last completed: M4.2b Indexing UI (headless Chromium + fake embedder: bar goes running to done 8/8, no JS errors)
+- Next task: **M4.3b Best/All UI**
+- Last completed: M4.3a Grouping backend (burst test passes; M4.3 split into a/b/c in PLAN)
 - Blockers: none
 
 ## Tuned values and model facts
@@ -34,6 +34,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: UI index control (`web/app.js`): "Index photos" button above the grid, progress bar with cancel, shows last failure text if the job fails (e.g. model download blocked). Reopening a project mid-index shows no progress (no job lookup by project); button then gets a 409 message.
 - 2026-10-16: M4.2c partial, cloud container (4 CPU, 15 GB, no GPU): real `GemmaEmbedder` passes `pytest -m model`; index job over 16 synthetic 1600 px JPEGs finished done 16/16, no failures, float32 on cpu, no NaN, store (16, 768), 127 s total = 7.96 s/image including model load (about 5.5 s/image after load). Synthetic only, so the real-shoot check is still open. Wikimedia Commons returned 403 "robot policy" to the container, so no sample photos were fetched.
 - 2026-10-16: M4.2c done on Kaggle GPU: 117 Commons photos indexed, store (117, 768), no NaN, cuda:0 bfloat16, 123 s incl. model load. These are public photos, not a private shoot; a run on a private shoot is still worth doing before the M8.1 demo.
+- 2026-10-16: duplicate groups (`grouping.regroup`): photo joins the previous photo's group (time order) if same chapter, <= 10 s later, both in the embedding store, cosine >= `dup_threshold` (chain, so a group can span more than 10 s). Pick = max sharpness (NULL counts lowest, ties go to the earliest). Not-yet-indexed photos are singleton groups and their own pick. Group ids are new on each regroup. Runs at the end of `regenerate_chapters` (import, gap change), at the end of the index job (stage `grouping`), and on `PATCH /projects/{id}` with `dup_threshold` (0 to 1). Photo listing now has `group_id`, `is_group_pick`. Decisions untouched.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added
