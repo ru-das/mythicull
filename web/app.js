@@ -129,6 +129,7 @@ async function showProject(id, jobId) {
         return;
       }
       stop.remove();
+      if (j.status === "done") await loadGrid();
       indexBtn.disabled = false;
       indexBox.append(" ", indexBtn);
       if (j.status !== "done") indexMsg.textContent = j.failures.length ? j.failures[j.failures.length - 1].error : `Indexing ${j.status}.`;
@@ -146,6 +147,11 @@ async function showProject(id, jobId) {
     }
   };
   indexBox.append(indexBtn, indexMsg);
+  const viewBtn = el("button", { title: "Best: one tile per duplicate group. All: every photo." });
+  const syncView = () => { viewBtn.textContent = view === "best" ? "View: Best" : "View: All"; };
+  viewBtn.onclick = () => { view = view === "best" ? "all" : "best"; syncView(); renderGrid(); };
+  syncView();
+  indexBox.append(" ", viewBtn);
   app.append(indexBox, el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
   const bar = el("progress", { max: 1, value: 0 });
@@ -189,17 +195,60 @@ function openPreview(i) {
   overlay.hidden = false;
 }
 
-function showGrid(grid, list) {
-  photos = list;
+let allPhotos = [];
+let gridEl = null;
+let view = "best";
+const expanded = new Set();
+
+function visiblePhotos() {
+  if (view === "all") return allPhotos;
+  const groups = new Map();
+  for (const p of allPhotos) {
+    if (!groups.has(p.group_id)) groups.set(p.group_id, []);
+    groups.get(p.group_id).push(p);
+  }
+  const out = [];
+  for (const g of groups.values()) {
+    if (g.length > 1 && expanded.has(g[0].group_id)) out.push(...g);
+    else out.push(g.find((p) => p.is_group_pick) || g[0]);
+  }
+  return out;
+}
+
+function renderGrid() {
+  photos = visiblePhotos();
   current = -1;
   overlay.hidden = true;
-  grid.replaceChildren(...list.map((p, i) => {
+  const sizes = new Map();
+  for (const p of allPhotos) sizes.set(p.group_id, (sizes.get(p.group_id) || 0) + 1);
+  gridEl.replaceChildren(...photos.map((p, i) => {
     const img = el("img", { loading: "lazy", alt: p.filename, src: `/api/photos/${p.id}/thumb` });
-    const cell = el("div", { className: "cell" }, img);
+    const cell = el("div", { className: "cell" + (view === "best" && expanded.has(p.group_id) && p.is_group_pick ? " pick" : "") }, img);
     if (p.time_source === "mtime") cell.append(el("span", { className: "badge", title: "No EXIF time: using file modified time", textContent: "!" }));
+    const n = sizes.get(p.group_id);
+    if (view === "best" && n > 1 && (p.is_group_pick || expanded.has(p.group_id))) {
+      const open = expanded.has(p.group_id);
+      cell.append(el("button", {
+        className: "count",
+        title: open ? "Collapse group" : `Expand group of ${n}`,
+        textContent: String(n),
+        onclick: (ev) => {
+          ev.stopPropagation();
+          if (open) expanded.delete(p.group_id);
+          else expanded.add(p.group_id);
+          renderGrid();
+        },
+      }));
+    }
     cell.onclick = () => openPreview(i);
     return cell;
   }));
+}
+
+function showGrid(grid, list) {
+  gridEl = grid;
+  allPhotos = list;
+  renderGrid();
 }
 
 document.addEventListener("keydown", (e) => {
@@ -223,6 +272,8 @@ function route() {
   clearTimeout(pollTimer);
   clearTimeout(indexTimer);
   photos = [];
+  allPhotos = [];
+  expanded.clear();
   openPreview(-1);
   const m = location.hash.match(/^#\/p\/([^/]+)(?:\/([^/]+))?$/);
   (m ? showProject(m[1], m[2]) : showList()).catch(showError);
