@@ -184,7 +184,37 @@ async function showProject(id, jobId) {
     ...[["all", "All"], ["unreviewed", "Unreviewed"], ["keep", "Kept"], ["reject", "Rejected"]]
       .map(([v, t]) => el("option", { value: v, textContent: t, selected: v === filter })));
   indexBox.append(" ", searchBox, " ", searchMsg, " ", filterSel, " ", counters, " ", viewBtn, " ", el("label", { title: "Move to the next photo after P or X" }, adv, " Auto-advance"));
-  app.append(indexBox, el("div", { className: "layout" }, side, grid));
+  const exportMsg = el("div");
+  const runExport = async (path, body, label) => {
+    exportMsg.replaceChildren(el("span", { className: "muted", textContent: `${label}…` }));
+    try {
+      const { job_id } = await api(path, body ? jsonBody("POST", body) : { method: "POST" });
+      const poll = async () => {
+        const j = await api(`/jobs/${job_id}`);
+        if (["queued", "running"].includes(j.status)) {
+          exportMsg.firstChild.textContent = `${label}: ${j.done}/${j.total}…`;
+          indexTimer = setTimeout(() => poll().catch(showError), 500);
+          return;
+        }
+        const fails = j.failures;
+        exportMsg.replaceChildren(
+          el("p", { className: j.status === "done" ? "" : "error", textContent: `${label} ${j.status}: ${j.total - fails.length} written, ${fails.length} skipped.` }),
+          el("ul", {}, ...fails.map((f) => el("li", { className: "muted", textContent: f.item ? `${f.item}: ${f.error}` : f.error }))));
+      };
+      await poll();
+    } catch (e) {
+      exportMsg.replaceChildren(el("p", { className: "error", textContent: e.message }));
+    }
+  };
+  const dest = el("input", { placeholder: "Destination folder for copy", size: 30 });
+  const perChapter = el("input", { type: "checkbox" });
+  const exportBox = el("details", { className: "exportbox" },
+    el("summary", { textContent: "Export" }),
+    el("p", {}, el("button", { textContent: "Write XMP sidecars", title: "Keep/reject/stars for Lightroom or darktable (RAW only)", onclick: () => runExport(`/projects/${id}/export/xmp`, null, "XMP export") })),
+    el("p", {}, dest, " ", el("label", {}, perChapter, " One folder per chapter"), " ",
+      el("button", { textContent: "Copy kept photos", onclick: () => runExport(`/projects/${id}/export/copy`, { destination: dest.value, per_chapter: perChapter.checked }, "Copy export") })),
+    exportMsg);
+  app.append(indexBox, exportBox, el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
   const bar = el("progress", { max: 1, value: 0 });
   const label = el("p", { className: "muted" });

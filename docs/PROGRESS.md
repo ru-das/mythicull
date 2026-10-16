@@ -3,8 +3,8 @@
 Claude Code updates this file after every task. Keep it short: replace stale entries instead of appending forever.
 
 ## Current state
-- Next task: **M7.3 Export UI**
-- Last completed: M7.2 Copy export (pytest green, tests only). Before that M7.1 XMP export (pytest green; real Lightroom/darktable check is M7.3). Before that M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
+- Next task: **M8.1 End-to-end run**
+- Last completed: M7.3 Export UI (pytest green; headless Chromium with mocked API: both exports start, summary and skip list shown, copy body correct, no JS errors). Manual check still open: sidecars from a real shoot in Lightroom Classic or darktable. Before that M7.2 Copy export (pytest green, tests only). Before that M7.1 XMP export (pytest green; real Lightroom/darktable check is M7.3). Before that M6.1 Search (pytest green with fake embedder; headless Chromium with mocked API: `/` focus, Enter search, Esc clear, error shown, no JS errors). Manual checks still open: real-shoot "people dancing" ranking (M6.1) and the 100-photo keyboard cull with a server restart (M5.2).
 - Blockers: none
 
 ## Tuned values and model facts
@@ -16,7 +16,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 | Search query prompt | `task: search result \| query: ` | M6.1: verified in the model repo's `config_sentence_transformers.json` (`query` / `Retrieval-query` / `SearchQuery` prompts). Model card text itself not read |
 | `chapter_gap_minutes` | 15 (default) | |
 | `dup_threshold` | 0.92 (kept) | M4.3c, `scripts/dup_sweep.py` on 354 HDR+ burst frames from 40 bursts (Kaggle/Colab GPU), synthetic times: same-burst pairs 0.973 to 0.999, cross-burst 0.54 to 0.68; groups 39 for 0.85 to 0.94, 42 at 0.96, 48 at 0.98 (ideal 40). Easy cases only; HDR+ frames are 0.1 s exposure brackets, real bursts will score lower |
-| XMP tested in | TBD (M7.3) | |
+| XMP tested in | TBD (open manual check from M7.3) | |
 
 ## Decisions
 - 2026-10-16: spike ran on Colab, not locally (dev machine has 4 GB RAM). Images are CC-licensed Commons photos, not committed.
@@ -42,6 +42,7 @@ Claude Code updates this file after every task. Keep it short: replace stale ent
 - 2026-10-16: search (M6.1): `GET /projects/{id}/search?q=&k=&chapter=` returns `PhotoOut` list best-first (no scores, per the calibration rule); `k` default 50 (`config.DEFAULT_SEARCH_K`), 1 to 500; blank q 400; unknown project 404; unindexed project returns `[]` (model not loaded); any embedder error -> 503 `search unavailable: ...`. Chapter scope filters before ranking. Brute-force `matrix @ query` in `search.rank`. UI: search box in the top bar, `/` focuses, Enter runs, Esc or the x clears; hits show ungrouped in rank order (Best/All ignored while searching); picking a chapter re-runs the search in that chapter; filter still applies. `FakeEmbedder.encode_text` is now deterministic (was broken).
 - 2026-10-16: XMP export (M7.1): `POST /api/projects/{id}/export/xmp` -> `{job_id}` (job kind `export_xmp`, `export.export_xmp`). Only photos with status keep/reject; RAW ext other than `.dng` only. Sidecar `<raw path with .xmp>`, written directly (not tmp+rename). Summary = job: `done` counts processed, `failures` = skipped `{item, error}`; written = `total` minus failures. Skips: JPEG/DNG, missing original, existing sidecar without `xmp:CreatorTool="MythiCull"`. Keep rating = max(stars,1) + Green; reject = 0 + Red.
 - 2026-10-16: copy export (M7.2): `POST /api/projects/{id}/export/copy` `{destination, per_chapter}` -> `{job_id}` (kind `export_copy`, `export.export_copy`). 400 if destination blank, a file, or equal to/inside the project folder (resolved paths); folder is created if missing. Kept photos only, ordered by chapter then time. Name clash -> smallest shared `_n` suffix (RAW+JPEG pair keeps one suffix), existing files never touched. `per_chapter` -> `NN <title>/` (illegal path chars stripped; photos with no chapter go to the root). `mythicull_manifest.json` at destination root (suffixed if present): `{project, exported_at, chapters:[{title, folder, photos:[{filename, companion, stars}]}]}` with the names as copied. Summary = job: `failures` lists missing originals/companions and OS errors; copied = `total` minus failures.
+- 2026-10-16: export UI (M7.3, `web/app.js`): collapsible "Export" panel under the index bar. XMP button; copy button with destination text input and per-chapter checkbox. Job polled every 500 ms; summary reads `N written, M skipped` (N = total - failures) with each skip listed as `item: reason`. Server 400s (bad destination) shown as the error. No folder picker (browser cannot give a server path); destination is typed.
 <!-- One line each: date, decision, reason. -->
 
 ## Dependencies added

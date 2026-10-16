@@ -62,7 +62,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: tests cover keep, reject, foreign sidecar skipped, own sidecar updated, JPEG skipped.
 - [x] **M7.2 Copy export.** Kept photos and companions, per-chapter folders option, no-overwrite suffixes, refuse destination inside source, manifest.
   Done when: tests cover name clashes and the refused destination.
-- [ ] **M7.3 Export UI.** Export panel with both options and the summary.
+- [x] **M7.3 Export UI.** Export panel with both options and the summary.
   Done when: sidecars from the real shoot are checked in Lightroom Classic or darktable and the result is recorded.
 
 ## M8. Demo readiness
