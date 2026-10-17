@@ -166,4 +166,5 @@ def index_project(ctx: jobs.JobContext, project_id: str) -> None:
     ctx.stage("grouping")
     from mythicull import grouping  # grouping imports embed
 
+    grouping.save_label_vectors(embedder)
     grouping.regroup(conn, project_id)

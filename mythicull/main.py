@@ -190,6 +190,7 @@ class ChapterOut(BaseModel):
     auto_title: str
     user_title: str | None
     title: str
+    suggested_title: str | None = None
     photo_count: int
     kept_count: int
     rejected_count: int
@@ -207,9 +208,9 @@ _CHAPTER_SQL = (
 )
 
 
-def _chapter_out(row: object) -> ChapterOut:
+def _chapter_out(row: object, suggested: str | None = None) -> ChapterOut:
     d = dict(row)  # type: ignore[call-overload]
-    return ChapterOut(**d, title=d["user_title"] or d["auto_title"])
+    return ChapterOut(**d, title=d["user_title"] or d["auto_title"], suggested_title=suggested)
 
 
 @app.get("/api/projects/{project_id}/chapters")
@@ -218,7 +219,11 @@ def list_chapters(project_id: str) -> list[ChapterOut]:
     try:
         if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
             raise HTTPException(404, "project not found")
-        return [_chapter_out(r) for r in conn.execute(_CHAPTER_SQL + " WHERE c.project_id = ? ORDER BY c.position", (project_id,))]
+        suggestions = grouping.chapter_suggestions(conn, project_id)
+        return [
+            _chapter_out(r, suggestions.get(r["id"]))
+            for r in conn.execute(_CHAPTER_SQL + " WHERE c.project_id = ? ORDER BY c.position", (project_id,))
+        ]
     finally:
         conn.close()
 

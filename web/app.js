@@ -123,7 +123,14 @@ async function showProject(id, jobId) {
           await loadGrid();
         } }));
       if (c) {
-        li.append(el("div", { className: "muted", textContent: `${c.photo_count} photos, ${c.kept_count} kept` }),
+        li.append(el("div", { className: "muted", textContent: `${c.photo_count} photos, ${c.kept_count} kept` }));
+        if (c.suggested_title && !c.user_title) {
+          li.append(el("button", { className: "link", textContent: `Use "${c.suggested_title}"`, title: "Suggested from the photos; ignore it to keep the current name", onclick: async () => {
+            await api(`/chapters/${c.id}`, jsonBody("PATCH", { user_title: c.suggested_title }));
+            await loadChapters(p);
+          } }), " ");
+        }
+        li.append(
           el("button", { className: "link", textContent: "rename", onclick: async () => {
             const t = prompt("Chapter title (blank resets)", c.user_title || c.title);
             if (t === null) return;

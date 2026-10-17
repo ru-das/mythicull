@@ -1,13 +1,20 @@
+import os
 import sqlite3
 import uuid
 from datetime import datetime
 
 import numpy as np
 
-from mythicull import embed
+from mythicull import config, embed
 
 MIN_CHAPTER_PHOTOS = 3
 DUP_WINDOW_SECONDS = 10
+
+CHAPTER_LABELS = [
+    "getting ready", "details and decor", "ceremony", "vows", "ring exchange", "first kiss",
+    "family group photos", "couple portraits", "cocktail hour", "reception entrance", "speeches",
+    "first dance", "cake cutting", "dance floor", "keynote", "awards", "audience", "venue exterior",
+]
 
 
 def split_chapters(times: list[datetime], gap_minutes: int) -> list[list[int]]:
@@ -125,3 +132,44 @@ def _same_burst(a: sqlite3.Row, b: sqlite3.Row, row_of: dict[str, int], matrix: 
         return False
     dt = (datetime.fromisoformat(b["capture_time"]) - datetime.fromisoformat(a["capture_time"])).total_seconds()
     return dt <= DUP_WINDOW_SECONDS and float(matrix[row_of[a["id"]]] @ matrix[row_of[b["id"]]]) >= threshold
+
+
+def _labels_path():  # noqa: ANN202
+    return config.data_dir() / "chapter_labels.npz"
+
+
+def save_label_vectors(embedder: embed.Embedder) -> None:
+    """Cache text embeddings of CHAPTER_LABELS. Encodes only when the cache is missing or from another model."""
+    path = _labels_path()
+    try:
+        with np.load(path) as f:
+            if str(f["model_id"]) == embedder.model_id and list(f["labels"]) == CHAPTER_LABELS:
+                return
+    except (FileNotFoundError, ValueError, KeyError):
+        pass
+    tmp = path.with_name("chapter_labels.tmp.npz")
+    np.savez(tmp, model_id=embedder.model_id, labels=np.array(CHAPTER_LABELS), vectors=embedder.encode_text(CHAPTER_LABELS).astype(np.float32))
+    os.replace(tmp, path)
+
+
+def chapter_suggestions(conn: sqlite3.Connection, project_id: str) -> dict[str, str]:
+    """Best-matching label per chapter (chapter id -> label), from the mean image embedding of its indexed photos.
+    Never loads the model: needs the label cache from an index run. Scores are only compared within one chapter."""
+    try:
+        with np.load(_labels_path()) as f:
+            label_model, labels, vectors = str(f["model_id"]), [str(x) for x in f["labels"]], f["vectors"]
+    except (FileNotFoundError, ValueError, KeyError):
+        return {}
+    ids, matrix = embed.load_store(project_id, label_model)
+    if not ids:
+        return {}
+    row_of = {pid: i for i, pid in enumerate(ids)}
+    rows_by_chapter: dict[str, list[int]] = {}
+    for r in conn.execute("SELECT id, chapter_id FROM photos WHERE project_id = ? AND chapter_id IS NOT NULL", (project_id,)):
+        if r["id"] in row_of:
+            rows_by_chapter.setdefault(r["chapter_id"], []).append(row_of[r["id"]])
+    out = {}
+    for cid, rows in rows_by_chapter.items():
+        label = labels[int(np.argmax(vectors @ matrix[rows].mean(axis=0)))]
+        out[cid] = label[0].upper() + label[1:]
+    return out

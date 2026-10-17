@@ -71,6 +71,6 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **M8.3 Polish.** Fix the top issues found in M8.1. Empty states and error messages for missing folder, model download failure and no supported photos. Done: the three error/empty states; M8.1 had no new bugs beyond the known issues below, which stay open.
 
 ## Stretch (only after M8, in this order)
-- [ ] **S1 Suggested chapter names** (see `docs/SPEC.md`)
+- [x] **S1 Suggested chapter names** (see `docs/SPEC.md`)
 - [ ] **S2 Vibe prompt**
 - [ ] **S3 Per-camera time offset**
