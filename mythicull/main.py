@@ -483,6 +483,21 @@ class HealthOut(BaseModel):
     status: str
 
 
+class ModelOut(BaseModel):
+    ready: bool
+    path: str
+
+
+@app.get("/api/model")
+def model_status() -> ModelOut:
+    return ModelOut(ready=embed.model_ready(), path=str(config.model_dir()))
+
+
+@app.post("/api/model/download")
+def download_model() -> JobStartedOut:
+    return JobStartedOut(job_id=jobs.start("model_download", embed.download_model))
+
+
 @app.get("/api/health")
 def health() -> HealthOut:
     return HealthOut(status="ok")

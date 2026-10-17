@@ -27,7 +27,7 @@ pip install -r requirements.txt
 uvicorn mythicull.main:app --port 8000
 ```
 
-Open http://localhost:8000. The model downloads on the first index or search. A GPU is strongly recommended: indexing took about 32 s per photo on a CPU in our test and about 1 s or less on a GPU. Browsing and rating work without the model and before indexing finishes.
+Open http://localhost:8000. The first time you click Index photos, the app shows a one-time model download with progress. The model is saved in `~/.mythicull/models/` (inside `MYTHICULL_DATA_DIR`) and loaded from there, so it works offline afterwards. A GPU is strongly recommended: indexing took about 32 s per photo on a CPU in our test and about 1 s or less on a GPU. Browsing and rating work without the model and before indexing finishes.
 
 Environment variables:
 - `MYTHICULL_DATA_DIR`: where projects, thumbnails and embeddings live (default `~/.mythicull`). Never inside a photo folder.

@@ -442,7 +442,8 @@ async function showProject(id, jobId) {
   const indexBox = el("div", { className: "indexbox" });
   const indexMsg = el("p", { className: "error", attrs: { role: "alert" } });
   const indexBtn = el("button", { type: "button", className: "btn primary", textContent: "Index photos", title: "Embed previews for search and duplicate groups" });
-  const trackIndex = async (indexJob) => {
+  const mb = (n) => `${Math.round(n / 1048576)} MB`;
+  const trackIndex = async (indexJob, downloading = false) => {
     const bar = progressBar();
     const label = el("span", { className: "muted mono" });
     const stop = el("button", { type: "button", className: "btn text", textContent: "cancel", onclick: () => api(`/jobs/${indexJob}/cancel`, { method: "POST" }) });
@@ -451,16 +452,19 @@ async function showProject(id, jobId) {
       const j = await api(`/jobs/${indexJob}`);
       const running = ["queued", "running"].includes(j.status);
       bar.set(j.done, j.total || 1, running);
-      label.textContent = `Indexing ${j.status}: ${j.done}/${j.total}` + (j.failures.length ? `, ${j.failures.length} failed` : "");
+      label.textContent = downloading
+        ? `Downloading search model (one time) ${j.status}: ${mb(j.done)}/${mb(j.total)}`
+        : `Indexing ${j.status}: ${j.done}/${j.total}` + (j.failures.length ? `, ${j.failures.length} failed` : "");
       if (running) {
         indexTimer = setTimeout(() => poll().catch(showError), 500);
         return;
       }
       stop.remove();
-      if (j.status === "done") await loadGrid();
+      if (j.status === "done" && !downloading) await loadGrid();
       indexBtn.disabled = false;
       indexBox.append(indexBtn);
-      if (j.status !== "done") indexMsg.textContent = j.failures.length ? j.failures[j.failures.length - 1].error : `Indexing ${j.status}.`;
+      if (j.status !== "done") indexMsg.textContent = j.failures.length ? j.failures[j.failures.length - 1].error : `${downloading ? "Download" : "Indexing"} ${j.status}.`;
+      else if (downloading) await indexBtn.onclick(); // model is local now, carry on with indexing
     };
     await poll();
   };
@@ -468,6 +472,7 @@ async function showProject(id, jobId) {
     indexBtn.disabled = true;
     indexMsg.textContent = "";
     try {
+      if (!(await api("/model")).ready) return await trackIndex((await api("/model/download", { method: "POST" })).job_id, true);
       await trackIndex((await api(`/projects/${id}/index`, { method: "POST" })).job_id);
     } catch (e) {
       indexMsg.textContent = e.message;

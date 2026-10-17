@@ -21,6 +21,37 @@ class Embedder(Protocol):
     def encode_text(self, texts: list[str]) -> np.ndarray: ...
 
 
+_READY_MARKER = ".complete"
+
+
+def model_ready() -> bool:
+    """True once a full download finished. The marker is written last, so a partial download never counts."""
+    return (config.model_dir() / _READY_MARKER).is_file()
+
+
+def download_model(ctx: jobs.JobContext) -> None:
+    """Job body: fetch the model once into the data dir. Progress is in bytes. Resumes after an interruption."""
+    from huggingface_hub import HfApi, snapshot_download
+    from tqdm.auto import tqdm
+
+    if model_ready():
+        return
+
+    class _Bar(tqdm):
+        def update(self, n: float | None = 1) -> bool | None:
+            if self.unit == "B" and n:  # byte bars only, skip the file-count bar
+                ctx.advance(int(n))
+            return super().update(n)
+
+    ctx.stage("downloading")
+    info = HfApi().model_info(config.MODEL_ID, files_metadata=True)
+    ctx.set_total(sum(s.size or 0 for s in info.siblings))
+    d = config.model_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    snapshot_download(config.MODEL_ID, local_dir=d, tqdm_class=_Bar)
+    (d / _READY_MARKER).write_text("ok")
+
+
 class GemmaEmbedder:
     """EmbeddingGemma 2, loaded on first use. float32 on CPU, bfloat16 on GPU, never float16."""
 
@@ -33,6 +64,9 @@ class GemmaEmbedder:
         import torch
         from sentence_transformers import SentenceTransformer
 
+        if not model_ready():
+            raise FileNotFoundError("model not downloaded")
+        path = str(config.model_dir())
         if torch.cuda.is_available():
             device, dtype = "cuda", torch.bfloat16
         elif torch.backends.mps.is_available():
@@ -40,11 +74,11 @@ class GemmaEmbedder:
         else:
             device, dtype = "cpu", torch.float32
         try:
-            return SentenceTransformer(self.model_id, device=device, model_kwargs={"torch_dtype": dtype})
+            return SentenceTransformer(path, device=device, model_kwargs={"torch_dtype": dtype})
         except Exception:
             if dtype == torch.float32:
                 raise
-            return SentenceTransformer(self.model_id, device=device, model_kwargs={"torch_dtype": torch.float32})
+            return SentenceTransformer(path, device=device, model_kwargs={"torch_dtype": torch.float32})
 
     def _encode(self, items: list) -> np.ndarray:
         if self._model is None:
@@ -52,8 +86,8 @@ class GemmaEmbedder:
                 self._model = self._load()
             except Exception as e:
                 raise RuntimeError(
-                    f"Could not load model {self.model_id}. The first run needs internet to download it once; "
-                    f"check your connection and try again. ({e})"
+                    f"Could not load model {self.model_id}. Download it first (one time, needs internet) "
+                    f"with the model download button. ({e})"
                 ) from e
         out = self._model.encode(items, batch_size=config.batch_size(), normalize_embeddings=True, convert_to_numpy=True)
         return np.asarray(out, dtype=np.float32)
