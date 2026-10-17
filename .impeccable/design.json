@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-17T00:00:00Z",
+  "title": "Design System: MythiCull",
+  "extensions": {
+    "colorMeta": {
+      "film-yellow": { "role": "primary", "displayName": "Film Yellow", "canonical": "#ffb300", "tonalRamp": ["#4d3500", "#7a5400", "#a67000", "#d18c00", "#ffb300", "#ffc640", "#ffd77a", "#ffeab8"] },
+      "stop-red": { "role": "primary", "displayName": "Stop Red", "canonical": "#d7261e", "tonalRamp": ["#3d0b09", "#66110e", "#8f1813", "#b81f18", "#d7261e", "#e8645d", "#f29a95", "#f9d0cd"] },
+      "keep-green": { "role": "secondary", "displayName": "Keep Green", "canonical": "#35b36b", "tonalRamp": ["#0f2e1c", "#17492b", "#1f6a3e", "#2a8a54", "#35b36b", "#6bcb92", "#9fddb8", "#d2f0df"] },
+      "edge-orange": { "role": "tertiary", "displayName": "Edge Orange", "canonical": "#ff7a1a", "tonalRamp": ["#4a2000", "#753200", "#a34600", "#d15c00", "#ff7a1a", "#ff9a4d", "#ffba85", "#ffdcc0"] },
+      "dark-bg": { "role": "neutral", "displayName": "Darkroom Black", "canonical": "#121212", "tonalRamp": ["#0b0b0b", "#121212", "#1b1b1b", "#262626", "#2e2e2e", "#303030", "#a39e92", "#f4f1e8"] },
+      "light-bg": { "role": "neutral", "displayName": "Cream Stock", "canonical": "#efece3", "tonalRamp": ["#1a1814", "#5d584d", "#a84300", "#bfbfbf", "#d2d2d2", "#d6d1c3", "#efece3", "#ffffff"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page headings (Archivo Black)." },
+      "brand": { "displayName": "Brand", "purpose": "Wordmark in the yellow bar." },
+      "roll-name": { "displayName": "Roll name", "purpose": "Project names in the project list." },
+      "title": { "displayName": "Title", "purpose": "h3 and chapter titles (Barlow Semi Condensed 700)." },
+      "body": { "displayName": "Body", "purpose": "Default UI text." },
+      "label": { "displayName": "Label", "purpose": "Field labels, segmented buttons, switches." },
+      "data": { "displayName": "Data / edge print", "purpose": "Frame numbers, counters, chapter numbers, paths (Martian Mono, tabular)." }
+    },
+    "shadows": [
+      { "name": "selection", "value": "0 0 0 3px var(--sel), 0 6px 18px rgba(0,0,0,.5)", "purpose": "Selected cell; status ring goes inside, selection ring outside (3px + 6px)." },
+      { "name": "toast", "value": "0 10px 28px var(--shadow)", "purpose": "Transient notices." },
+      { "name": "field-focus", "value": "0 0 0 3px color-mix(in srgb, #ffb300 35%, transparent)", "purpose": "Focused text fields." },
+      { "name": "search-focus", "value": "0 0 0 3px #111, 0 0 0 5px #d7261e", "purpose": "Search field in the yellow bar." }
+    ],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(.16, 1, .3, 1)", "purpose": "Shared spring-out curve for all movement." },
+      { "name": "view-in", "value": "500ms, rise 14px + fade", "purpose": "View entry." },
+      { "name": "row-in", "value": "500ms, stagger 50ms", "purpose": "Project list rows." },
+      { "name": "cell-in", "value": "500ms, stagger 22ms, first 40 cells", "purpose": "Grid cells." },
+      { "name": "flip", "value": "550ms, stagger 45ms per digit", "purpose": "Counter digit change." },
+      { "name": "stamp", "value": "500ms, scale 2.6 to 1, rotate -14deg", "purpose": "Keep/reject mark." },
+      { "name": "pop", "value": "400ms, scale 1.35", "purpose": "Star change." },
+      { "name": "sheen", "value": "1.2s linear infinite", "purpose": "Running progress bar." },
+      { "name": "toast-in/out", "value": "450ms in, 300ms out", "purpose": "Toast lifecycle." },
+      { "name": "shake", "value": "350ms", "purpose": "Invalid form submit." },
+      { "name": "spin-in", "value": "500ms", "purpose": "Theme icon swap." },
+      { "name": "lb-swap", "value": "250ms", "purpose": "Lightbox image change." },
+      { "name": "theming", "value": "350ms bg/color/border", "purpose": "Theme switch cross-fade." },
+      { "name": "reduced-motion", "value": "animation/transition duration .001ms, delay 0", "purpose": "Global @media (prefers-reduced-motion: reduce) override." }
+    ],
+    "breakpoints": [
+      { "name": "tablet", "value": "900px" },
+      { "name": "phone", "value": "600px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "Yellow call to action; hover turns red.",
+      "html": "<button class=\"ds-btn-primary\">Index photos</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; min-height: 40px; padding: 0 18px; font: 700 15px 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: .02em; background: #ffb300; color: #111; border: 2px solid #ffb300; border-radius: 3px; cursor: pointer; transition: transform .2s cubic-bezier(.16,1,.3,1), background-color .2s, color .2s; } .ds-btn-primary:hover { background: #d7261e; border-color: #d7261e; color: #fff; } .ds-btn-primary:active { transform: translateY(1px) scale(.98); } .ds-btn-primary:focus-visible { outline: 2px solid #f4f1e8; outline-offset: 2px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "custom",
+      "refersTo": "button-outline",
+      "description": "Default button; inverts on hover.",
+      "html": "<button class=\"ds-btn-outline\">Write XMP sidecars</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; min-height: 40px; padding: 0 18px; font: 700 15px 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; background: transparent; color: #f4f1e8; border: 2px solid #f4f1e8; border-radius: 3px; cursor: pointer; transition: background-color .2s, color .2s; } .ds-btn-outline:hover { background: #f4f1e8; color: #121212; } .ds-btn-outline:focus-visible { outline: 2px solid #ffb300; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Hairline field with yellow focus halo.",
+      "html": "<input class=\"ds-input\" placeholder=\"Photo folder\">",
+      "css": ".ds-input { width: 100%; min-height: 42px; padding: 0 12px; background: #0b0b0b; color: #f4f1e8; border: 1px solid #2e2e2e; border-radius: 3px; font: 500 16px 'Barlow Semi Condensed', sans-serif; transition: border-color .2s, box-shadow .2s; } .ds-input:hover { border-color: #a39e92; } .ds-input:focus { outline: none; border-color: #ffb300; box-shadow: 0 0 0 3px rgba(255,179,0,.35); }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "segmented-on",
+      "description": "Black track with a yellow selected segment (radiogroup).",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button class=\"ds-seg-b on\" role=\"radio\" aria-checked=\"true\">All</button><button class=\"ds-seg-b\" role=\"radio\" aria-checked=\"false\">Kept</button><button class=\"ds-seg-b\" role=\"radio\" aria-checked=\"false\">Unreviewed</button></div>",
+      "css": ".ds-seg { display: inline-flex; padding: 3px; background: #111; border-radius: 3px; } .ds-seg-b { height: 34px; padding: 0 11px; background: none; border: 0; border-radius: 2px; color: #e8dcc0; font: 600 14px 'Barlow Semi Condensed', sans-serif; cursor: pointer; } .ds-seg-b.on { background: #ffb300; color: #111; } .ds-seg-b:not(.on):hover { color: #fff; } .ds-seg-b:focus-visible { outline: 2px solid #ffb300; outline-offset: 2px; }"
+    },
+    {
+      "name": "Switch",
+      "kind": "custom",
+      "refersTo": "segmented-on",
+      "description": "role=switch toggle; knob turns yellow when on.",
+      "html": "<button class=\"ds-switch\" role=\"switch\" aria-checked=\"true\"><span class=\"ds-switch-track\"></span><span>Best only</span></button>",
+      "css": ".ds-switch { display: inline-flex; align-items: center; gap: 9px; background: none; border: 0; padding: 4px 0; color: #f4f1e8; font: 600 14px 'Barlow Semi Condensed', sans-serif; cursor: pointer; } .ds-switch-track { position: relative; width: 38px; height: 22px; border-radius: 11px; background: #0b0b0b; border: 2px solid #ffb300; } .ds-switch-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #ffb300; transform: translateX(16px); } .ds-switch:focus-visible { outline: 2px solid #ffb300; outline-offset: 2px; }"
+    },
+    {
+      "name": "Chapter Row",
+      "kind": "nav",
+      "refersTo": "chapter-no-active",
+      "description": "Sidebar chapter roll; active row has a yellow number chip.",
+      "html": "<div class=\"ds-ch\"><span class=\"ds-ch-no\">02A</span><span class=\"ds-ch-title\">Ceremony</span><span class=\"ds-ch-n\">214</span></div>",
+      "css": ".ds-ch { display: grid; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 9px 8px; background: #1b1b1b; border-radius: 3px; color: #f4f1e8; } .ds-ch-no { font: 600 11px 'Martian Mono', monospace; padding: 3px 0; text-align: center; background: #ffb300; color: #111; border-radius: 2px; } .ds-ch-title { font: 700 17px/1.15 'Barlow Semi Condensed', sans-serif; } .ds-ch-n { font: 600 13px 'Martian Mono', monospace; color: #ff7a1a; }"
+    },
+    {
+      "name": "Photo Cell with Edge Caption",
+      "kind": "card",
+      "refersTo": "edge-caption",
+      "description": "Neutral frame over a black edge-print strip; kept state shown as a green ring.",
+      "html": "<div class=\"ds-cell\"><div class=\"ds-frame\"></div><div class=\"ds-edge\"><i class=\"ds-dx\"></i><span class=\"ds-fno\">14A</span><span class=\"ds-fname\">DSC_0142.jpg</span></div></div>",
+      "css": ".ds-cell { width: 190px; background: #303030; border-radius: 2px; box-shadow: 0 0 0 3px #35b36b; } .ds-frame { aspect-ratio: 3/2; background: #303030; } .ds-edge { display: flex; align-items: center; gap: 7px; padding: 6px 8px; background: #0b0b0b; color: #ff7a1a; font: 400 12px 'Martian Mono', monospace; } .ds-dx { width: 7px; height: 9px; background: #ff7a1a; clip-path: polygon(0 0, 100% 50%, 0 100%); } .ds-fno { font-weight: 600; } .ds-fname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8c7a68; }"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Transient notice, bottom right.",
+      "html": "<div class=\"ds-toast\"><span>Export finished.</span></div>",
+      "css": ".ds-toast { display: flex; gap: 10px; padding: 12px 14px; background: #111; color: #f4f1e8; border: 1px solid #3a3a3a; border-radius: 4px; box-shadow: 0 10px 28px rgba(0,0,0,.55); font: 500 16px 'Barlow Semi Condensed', sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Film Roll",
+    "overview": "Every shoot is a roll of film. The chrome is film-box packaging: a yellow top bar over a red rule, black edge-print strips under each frame, and orange mono frame numbers. The photos sit on a neutral grey surround that no theme color touches. Dark by default, with a light theme (cream ground, same yellow bar, same grey surround). Departures from the contract: keep is green; the chapter rail is a bordered sidebar card; counters sit in the action strip; captions read <n>A with a decorative constant A.",
+    "keyCharacteristics": [
+      "Yellow bar (64px) with a 6px red bottom rule, yellow in both themes.",
+      "Photos on a neutral grey surround; no hue near a photo.",
+      "Black edge-print captions with orange Martian Mono frame numbers.",
+      "Authored custom controls with real roles; keyboard-operable.",
+      "One spring easing; prefers-reduced-motion collapses all motion."
+    ],
+    "rules": [
+      { "name": "The Neutral Surround Rule", "body": "Nothing but neutral grey touches a photo's edge. Status rings hug the cell; the grid background never takes theme color.", "section": "colors" },
+      { "name": "The Keep Is Green Rule", "body": "Green means keep. Yellow means pick, star, group, or active. Red means reject or group badge. Off-white ring means selection.", "section": "colors" },
+      { "name": "The Bar Stays Yellow Rule", "body": "The top bar is film-yellow with on-yellow ink and a red rule in both themes; focus rings inside it are #111.", "section": "colors" },
+      { "name": "The Three Voices Rule", "body": "Display face for names only, condensed sans for everything operable, mono for anything numeric or edge-printed.", "section": "typography" },
+      { "name": "The Tabular Rule", "body": "Numbers that change use mono with tabular figures so digits do not shift.", "section": "typography" },
+      { "name": "The Flat-Until-Chosen Rule", "body": "Surfaces are flat at rest; lift is reserved for the selected frame and transient toasts.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the bar yellow with a 6px red rule and on-yellow ink in both themes.",
+      "Do put every frame number and counter in Martian Mono with tabular figures; frame captions read <n>A.",
+      "Do keep photo surround neutral grey in both themes.",
+      "Do show keep as green, reject as red, selection as an off-white (dark) or near-black (light) ring.",
+      "Do build new controls as authored elements with real roles, aria-* state, and a visible :focus-visible ring (2px, offset 2px).",
+      "Do use authored inline SVG icons in the existing stroke style.",
+      "Do route new animation through the shared easing and let the global reduced-motion rule neutralise it."
+    ],
+    "donts": [
+      "Don't use browser-native selects, checkboxes, range inputs or dialogs.",
+      "Don't tint the grid, thumbnails or lightbox image area with theme color.",
+      "Don't treat the A in 14A as meaningful data; it is edge-print decoration.",
+      "Don't use yellow for keep or green for pick; roles are fixed.",
+      "Don't set body copy in Archivo Black or use text glyphs as icons."
+    ]
+  }
+}
