@@ -15,6 +15,7 @@ It uses the open-weight `google/embeddinggemma-2` model, run on your own machine
 - Privacy: photos never leave your computer. There is no telemetry and no cloud API.
 - Offline: after the one-time model download it works with no network.
 - No per-image cost: indexing a 3000-photo shoot costs electricity, not API fees.
+- No outside requests from the page either: the fonts are bundled in `web/fonts/`.
 
 ## Setup
 Python 3.11+.
@@ -35,8 +36,9 @@ Environment variables:
 ## Usage
 1. Create a project: name plus the full path of the photo folder on the machine running the server. Import runs in the background.
 2. Click **Index photos**. Indexing can be cancelled and resumes where it stopped. Chapters and Best/All grouping appear when it finishes.
-3. Cull. Best view shows one pick per duplicate group; click the blue badge to expand a group.
-4. Use the **Export** panel: write XMP sidecars, or copy kept photos to a destination folder (optionally one folder per chapter).
+3. Cull. Best view shows one pick per duplicate group; click the count badge to expand a group.
+4. The sun/moon button in the top bar switches between dark and light mode. Dark is the default and your choice is remembered in the browser.
+5. Use the **Export** panel: write XMP sidecars, or copy kept photos to a destination folder (optionally one folder per chapter).
 
 Your photo folder is read-only. The only files MythiCull ever writes there are `.xmp` sidecars, and it will not overwrite one it did not create. Copy export never overwrites files and refuses a destination inside the photo folder.
 
