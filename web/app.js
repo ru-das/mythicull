@@ -1,6 +1,8 @@
 const app = document.getElementById("app");
 const barSlot = document.getElementById("bar-slot");
 const toasts = document.getElementById("toasts");
+const topbar = document.querySelector(".topbar");
+new ResizeObserver(() => document.documentElement.style.setProperty("--bar-h", topbar.offsetHeight + "px")).observe(topbar);
 
 async function api(path, opts) {
   const res = await fetch("/api" + path, opts);
@@ -55,7 +57,7 @@ themeBtn.onclick = () => applyTheme(document.documentElement.dataset.theme === "
 applyTheme(document.documentElement.dataset.theme, false);
 
 function toast(message, kind = "info") {
-  const t = el("div", { className: "toast " + kind }, el("span", { textContent: message }));
+  const t = el("div", { className: "toast " + kind, attrs: kind === "error" ? { role: "alert" } : {} }, el("span", { textContent: message }));
   toasts.append(t);
   const close = () => {
     t.classList.add("out");
@@ -292,7 +294,7 @@ async function showProject(id, jobId) {
   const status = el("div");
   const page = el("div", { className: "view" }, el("div", { className: "proj-head" }, head, status));
   app.replaceChildren(page);
-  const grid = el("div", { className: "grid" });
+  const grid = el("div", { className: "grid", attrs: { role: "listbox", "aria-label": "Photos" } });
   const side = el("nav", { className: "sidebar", attrs: { "aria-label": "Chapters and settings" } });
   let chapterId = null;
   const searchMsg = el("span", { className: "hit muted" });
@@ -329,7 +331,8 @@ async function showProject(id, jobId) {
   const counters = el("div", { className: "counters", attrs: { role: "group" } });
   [sAll, sKept, sRej, sNew].forEach((s) => { s.node.prepend(s.n); counters.append(s.node); });
   let chapterProject = null;
-  refreshCounts = () => chapterProject && loadChapters(chapterProject);
+  let rcTimer = null;
+  refreshCounts = () => { clearTimeout(rcTimer); rcTimer = setTimeout(() => chapterProject && loadChapters(chapterProject), 250); };
   const loadChapters = async (p) => {
     chapterProject = p;
     const chapters = await api(`/projects/${id}/chapters`);
@@ -506,7 +509,9 @@ async function showProject(id, jobId) {
       toggle("One folder per chapter", false, (on) => { perChapter = on; }),
       el("button", { type: "button", className: "btn", textContent: "Copy kept photos", onclick: () => runExport(`/projects/${id}/export/copy`, { destination: dest.value, per_chapter: perChapter }, "Copy export") })),
     exportMsg);
-  page.append(el("div", { className: "workbar" }, indexBox, counters, searchMsg, el("span", { className: "push" }, exp.head)), exp.wrap, el("div", { className: "layout" }, side, grid));
+  const sideToggle = el("button", { type: "button", className: "btn side-toggle", textContent: "Chapters and settings", attrs: { "aria-expanded": "false" } });
+  sideToggle.onclick = () => { const open = side.classList.toggle("open"); sideToggle.setAttribute("aria-expanded", String(open)); };
+  page.append(el("div", { className: "workbar" }, indexBox, counters, searchMsg, el("span", { className: "push" }, exp.head)), exp.wrap, sideToggle, el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
   const bar = progressBar();
   const label = el("p", { className: "muted mono" });
@@ -539,10 +544,12 @@ let refreshCounts = () => {};
 const undoStack = [];
 let cells = [];
 let enterAnim = false; // stagger tiles in only on a fresh load, not on every re-render
-const overlay = el("div", { className: "overlay", attrs: { "aria-hidden": "true" } });
+const overlay = el("div", { className: "overlay", attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Photo preview", "aria-hidden": "true" } });
+let lastFocus = null;
 const bigImg = el("img", { className: "lb-img", alt: "" });
 const caption = el("div", { className: "caption" });
-overlay.append(bigImg, caption, el("button", { type: "button", className: "lb-close", title: "Close preview (Esc)", attrs: { "aria-label": "Close preview" } }, icon("close")));
+const closeBtn = el("button", { type: "button", className: "lb-close", title: "Close preview (Esc)", attrs: { "aria-label": "Close preview" } }, icon("close"));
+overlay.append(bigImg, caption, closeBtn);
 overlay.onclick = () => openPreview(-1);
 document.body.append(overlay);
 
@@ -561,19 +568,22 @@ function paintCaption(p, i) {
 
 function select(i) {
   selected = Math.min(Math.max(i, 0), photos.length - 1);
-  cells.forEach((c, k) => c.classList.toggle("sel", k === selected));
+  cells.forEach((c, k) => { c.classList.toggle("sel", k === selected); c.setAttribute("aria-selected", String(k === selected)); });
   cells[selected]?.scrollIntoView({ block: "nearest" });
 }
 
 function openPreview(i) {
   if (i < 0 || i >= photos.length) {
     current = -1;
+    const wasOpen = overlay.classList.contains("open");
     overlay.classList.remove("open");
     overlay.setAttribute("aria-hidden", "true");
+    if (wasOpen && lastFocus && lastFocus !== document.body && document.contains(lastFocus)) lastFocus.focus();
+    lastFocus = null;
     return;
   }
-  document.activeElement?.blur?.();
   const wasOpen = current >= 0;
+  if (!wasOpen) lastFocus = document.activeElement;
   current = i;
   select(i);
   const p = photos[i];
@@ -587,6 +597,7 @@ function openPreview(i) {
   paintCaption(p, i);
   overlay.classList.add("open");
   overlay.setAttribute("aria-hidden", "false");
+  closeBtn.focus({ preventScroll: true });
 }
 
 function paintCell(i) {
@@ -610,6 +621,7 @@ function paintCell(i) {
   cell.querySelector(".stars").replaceWith(stars);
   if (cell.dataset.stars !== undefined && p.stars > old) stars.classList.add("pop");
   cell.dataset.stars = p.stars;
+  cell.setAttribute("aria-label", `${p.filename}, ${st ? (st === "keep" ? "kept" : "rejected") : "unreviewed"}${p.stars ? `, ${p.stars} stars` : ""}`);
   if (current === i) paintCaption(p, i);
 }
 
@@ -678,9 +690,9 @@ function renderGrid() {
   enterAnim = false;
   gridEl.replaceChildren(...photos.map((p, i) => {
     const frame = el("div", { className: "frame" }, el("img", { loading: "lazy", alt: p.filename, src: `/api/photos/${p.id}/thumb` }));
-    const cell = el("div", { className: "cell" + (animate && i < 40 ? " enter" : "") + (view === "best" && !searchQ && expanded.has(p.group_id) && p.is_group_pick ? " pick" : ""), style: `--d:${i}` },
+    const cell = el("div", { className: "cell" + (animate && i < 40 ? " enter" : "") + (view === "best" && !searchQ && expanded.has(p.group_id) && p.is_group_pick ? " pick" : ""), style: `--d:${i}`, attrs: { role: "option" } },
       frame,
-      el("div", { className: "edge" }, el("i", { className: "dx" }), el("span", { className: "fno", textContent: String(i + 1) }), el("span", { className: "fname", textContent: p.filename }), el("span", { className: "mark" }), el("span", { className: "stars" })));
+      el("div", { className: "edge" }, el("i", { className: "dx" }), el("span", { className: "fno", textContent: `${i + 1}A` }), el("span", { className: "fname", textContent: p.filename }), el("span", { className: "mark" }), el("span", { className: "stars" })));
     if (p.time_source === "mtime") frame.append(el("span", { className: "badge", title: "No EXIF time: using file modified time", textContent: "!" }));
     const n = sizes.get(p.group_id);
     if (view === "best" && !searchQ && n > 1 && (p.is_group_pick || expanded.has(p.group_id))) {
