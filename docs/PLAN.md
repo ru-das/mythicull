@@ -74,3 +74,6 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **S1 Suggested chapter names** (see `docs/SPEC.md`)
 - [x] **S2 Vibe prompt**
 - [x] **S3 Per-camera time offset**
+
+## UI
+- [x] **U1 UI redesign.** Replace the visual style of `web/` (Yellow Box film-stock world), custom controls instead of browser widgets, several fonts, animation, dark and light themes. Flow, routes and API calls unchanged.

@@ -1,14 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
 <title>MythiCull</title>
+<script>
+try { var t = localStorage.getItem("mythicull-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<link rel="preload" href="/fonts/barlow-semi-condensed-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/archivo-black-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<header><h1><a href="#" id="home">MythiCull</a></h1></header>
+<header class="topbar">
+  <a class="brand" id="home" href="#"><span class="brand-dx" aria-hidden="true"></span>MythiCull</a>
+  <div class="bar-slot" id="bar-slot"></div>
+  <button class="theme-btn" id="theme" type="button"></button>
+</header>
 <main id="app"></main>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 <script type="module" src="/app.js"></script>
 </body>
 </html>
