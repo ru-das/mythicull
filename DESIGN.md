@@ -1,4 +1,5 @@
 ---
+# NOTE (2026-10-17): superseded by the U2 "East of the Sun" restyle. This file still describes the Yellow Box look; `web/styles.css` tokens and docs/PROGRESS.md (UI restyle U2) are current until this is regenerated.
 name: MythiCull
 description: Film-stock packaging for a local culling desk. Yellow bar, red rule, black edge-print captions around neutral photos.
 colors:
