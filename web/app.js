@@ -102,6 +102,7 @@ async function showProject(id, jobId) {
   const loadChapters = async (p) => {
     chapterProject = p;
     const chapters = await api(`/projects/${id}/chapters`);
+    const cameras = await api(`/projects/${id}/cameras`);
     const total = (k) => chapters.reduce((n, c) => n + c[k], 0);
     const all = total("photo_count"), kept = total("kept_count"), rejected = total("rejected_count");
     counters.textContent = `${all} photos · ${kept} kept · ${rejected} rejected · ${all - kept - rejected} unreviewed`;
@@ -126,6 +127,21 @@ async function showProject(id, jobId) {
     vibe.onchange = () => patchVibe({ vibe_prompt: vibe.value });
     const weight = el("input", { type: "range", min: 0, max: 1, step: 0.05, value: p.vibe_weight, title: "Left: sharpest photo. Right: best match for the vibe text" });
     weight.onchange = () => patchVibe({ vibe_weight: Number(weight.value) });
+    const cameraRows = cameras.length < 2 ? [] : [el("div", { className: "muted", textContent: "Camera clocks (seconds to add)" }),
+      ...cameras.map((c) => {
+        const input = el("input", { type: "number", step: 1, value: c.offset_seconds, title: "Seconds to add to this camera's clock" });
+        input.onchange = async () => {
+          try {
+            await api(`/projects/${id}/cameras`, jsonBody("PUT", { camera_model: c.camera_model, offset_seconds: Math.round(Number(input.value) || 0) }));
+            await loadChapters(p);
+            await loadGrid();
+          } catch (e) {
+            alert(e.message);
+            await loadChapters(p); // put the box back to the saved value
+          }
+        };
+        return el("label", {}, `${c.camera_model || "Unknown camera"} (${c.photo_count}) `, input);
+      })];
     const entry = (c) => {
       const name = c ? c.title : "All photos";
       const li = el("li", { className: (c ? c.id : null) === chapterId ? "active" : "" },
@@ -153,7 +169,7 @@ async function showProject(id, jobId) {
       }
       return li;
     };
-    side.replaceChildren(el("label", {}, "Gap (min) ", gap), el("label", {}, "Vibe ", vibe), el("label", {}, "Sharp ", weight, " Vibe"), el("ul", {}, entry(null), ...chapters.map(entry)));
+    side.replaceChildren(el("label", {}, "Gap (min) ", gap), el("label", {}, "Vibe ", vibe), el("label", {}, "Sharp ", weight, " Vibe"), ...cameraRows, el("ul", {}, entry(null), ...chapters.map(entry)));
   };
   const render = async () => {
     const p = await api(`/projects/${id}`);

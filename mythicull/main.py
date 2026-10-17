@@ -347,10 +347,62 @@ def list_photos(project_id: str, chapter: str | None = None) -> list[PhotoOut]:
         if chapter:
             sql += " AND p.chapter_id = ?"
             args.append(chapter)
-        rows = conn.execute(sql + " ORDER BY p.capture_time, p.filename", args).fetchall()
+        rows = conn.execute(sql + f" ORDER BY {db.ADJUSTED_TIME}, p.filename", args).fetchall()
     finally:
         conn.close()
     return [PhotoOut(**dict(r)) for r in rows]
+
+
+class CameraOut(BaseModel):
+    camera_model: str  # "" = photos with no camera model in EXIF
+    photo_count: int
+    offset_seconds: int
+
+
+class CameraOffsetIn(BaseModel):
+    camera_model: str
+    offset_seconds: int = Field(ge=-10**9, le=10**9)
+
+
+def _cameras(conn: object, project_id: str) -> list[CameraOut]:
+    rows = conn.execute(  # type: ignore[attr-defined]
+        "SELECT COALESCE(p.camera_model, '') AS camera_model, COUNT(*) AS photo_count,"
+        " COALESCE(o.offset_seconds, 0) AS offset_seconds FROM photos p"
+        " LEFT JOIN camera_offsets o ON o.project_id = p.project_id AND o.camera_model = COALESCE(p.camera_model, '')"
+        " WHERE p.project_id = ? GROUP BY COALESCE(p.camera_model, '') ORDER BY 1",
+        (project_id,),
+    )
+    return [CameraOut(**dict(r)) for r in rows]
+
+
+@app.get("/api/projects/{project_id}/cameras")
+def list_cameras(project_id: str) -> list[CameraOut]:
+    conn = db.connect()
+    try:
+        _require_project(conn, project_id)
+        return _cameras(conn, project_id)
+    finally:
+        conn.close()
+
+
+@app.put("/api/projects/{project_id}/cameras")
+def set_camera_offset(project_id: str, body: CameraOffsetIn) -> list[CameraOut]:
+    """Set one camera's clock offset, then rebuild chapters and groups. Stored times and originals are not changed."""
+    conn = db.connect()
+    try:
+        _require_project(conn, project_id)
+        if body.camera_model not in {c.camera_model for c in _cameras(conn, project_id)}:
+            raise HTTPException(400, "unknown camera for this project")
+        with conn:
+            conn.execute(
+                "INSERT INTO camera_offsets (project_id, camera_model, offset_seconds) VALUES (?,?,?)"
+                " ON CONFLICT(project_id, camera_model) DO UPDATE SET offset_seconds = excluded.offset_seconds",
+                (project_id, body.camera_model, body.offset_seconds),
+            )
+        grouping.regenerate_chapters(conn, project_id)  # also regroups
+        return _cameras(conn, project_id)
+    finally:
+        conn.close()
 
 
 @app.get("/api/projects/{project_id}/search")

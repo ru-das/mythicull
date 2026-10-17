@@ -3,6 +3,13 @@ from pathlib import Path
 
 from mythicull import config
 
+# S3: capture_time plus its camera's offset (table alias `p`), same ISO ms format so it still sorts as text.
+# No offset row -> NULL modifier -> strftime gives NULL -> falls back to the raw time. NULL camera model uses key ''.
+ADJUSTED_TIME = (
+    "COALESCE(strftime('%Y-%m-%dT%H:%M:%f', p.capture_time, (SELECT o.offset_seconds || ' seconds' FROM camera_offsets o"
+    " WHERE o.project_id = p.project_id AND o.camera_model = COALESCE(p.camera_model, ''))), p.capture_time)"
+)
+
 # Append-only: entry N is migration N. Never edit a shipped migration.
 MIGRATIONS: list[str] = [
     f"""

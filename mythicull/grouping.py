@@ -5,7 +5,7 @@ from datetime import datetime
 
 import numpy as np
 
-from mythicull import config, embed
+from mythicull import config, db, embed
 
 MIN_CHAPTER_PHOTOS = 3
 DUP_WINDOW_SECONDS = 10
@@ -54,8 +54,8 @@ def regenerate_chapters(conn: sqlite3.Connection, project_id: str) -> None:
     largest photo overlap. Photo decisions are not touched."""
     photos = [
         r for r in conn.execute(
-            "SELECT id, capture_time, chapter_id FROM photos WHERE project_id = ? AND capture_time IS NOT NULL"
-            " ORDER BY capture_time, filename",
+            f"SELECT p.id, {db.ADJUSTED_TIME} AS capture_time, p.chapter_id FROM photos p"
+            " WHERE p.project_id = ? AND p.capture_time IS NOT NULL ORDER BY 2, p.filename",
             (project_id,),
         )
     ]
@@ -109,7 +109,8 @@ def regroup(conn: sqlite3.Connection, project_id: str) -> None:
     vibe = _vibe_vector(project_id, vibe_prompt, model_id) if vibe_prompt and vibe_weight > 0 else None
     row_of = {pid: i for i, pid in enumerate(ids)}
     photos = conn.execute(
-        "SELECT id, capture_time, chapter_id, sharpness FROM photos WHERE project_id = ? ORDER BY capture_time, filename",
+        f"SELECT p.id, {db.ADJUSTED_TIME} AS capture_time, p.chapter_id, p.sharpness FROM photos p"
+        " WHERE p.project_id = ? ORDER BY 2, p.filename",
         (project_id,),
     ).fetchall()
 

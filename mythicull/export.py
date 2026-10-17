@@ -4,7 +4,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-from mythicull import ingest, jobs
+from mythicull import db, ingest, jobs
 
 CREATOR_MARK = 'xmp:CreatorTool="MythiCull"'
 
@@ -76,7 +76,7 @@ def export_copy(ctx: jobs.JobContext, project_id: str, dest: Path, per_chapter: 
         "SELECT p.path, p.companion_path, d.stars, c.position AS pos, COALESCE(c.user_title, c.auto_title) AS title"
         " FROM photos p JOIN decisions d ON d.photo_id = p.id LEFT JOIN chapters c ON c.id = p.chapter_id"
         " WHERE p.project_id = ? AND d.status = 'keep'"
-        " ORDER BY c.position IS NULL, c.position, p.capture_time, p.path",
+        f" ORDER BY c.position IS NULL, c.position, {db.ADJUSTED_TIME}, p.path",
         (project_id,),
     ).fetchall()
     ctx.set_total(len(rows))

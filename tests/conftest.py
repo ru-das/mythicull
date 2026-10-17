@@ -5,10 +5,12 @@ import pytest
 from PIL import Image
 
 
-def make_jpeg(path: Path, when: datetime | None, subsec: str | None = None, size=(64, 48), color=(120, 80, 40)) -> Path:
+def make_jpeg(path: Path, when: datetime | None, subsec: str | None = None, size=(64, 48), color=(120, 80, 40), model: str | None = None) -> Path:
     """Write a tiny JPEG; EXIF DateTimeOriginal (+SubSecTimeOriginal) set when `when` is given."""
     img = Image.new("RGB", size, color)
     exif = Image.Exif()
+    if model is not None:
+        exif[0x0110] = model
     if when is not None:
         ifd = exif.get_ifd(0x8769)
         ifd[0x9003] = when.strftime("%Y:%m:%d %H:%M:%S")

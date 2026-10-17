@@ -73,4 +73,4 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 ## Stretch (only after M8, in this order)
 - [x] **S1 Suggested chapter names** (see `docs/SPEC.md`)
 - [x] **S2 Vibe prompt**
-- [ ] **S3 Per-camera time offset**
+- [x] **S3 Per-camera time offset**
