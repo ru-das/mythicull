@@ -246,16 +246,16 @@ main { padding: 28px 24px 60px; }
   .side-toggle { display: inline-flex; margin-bottom: 12px; }
   .theme-btn { order: 2; }
   .layout > .sidebar:not(.open) { display: none; }
-  .bar-slot { display: flex; flex: 1 1 100%; order: 3; gap: 10px; overflow-x: auto; padding-bottom: 4px; align-items: center; }
-  .bar-slot > * { flex: none; }
-  .bar-slot .search { flex: none; width: 240px; }
+  .bar-slot { display: flex; flex: 1 1 100%; order: 3; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .bar-slot .search { flex: 1 1 100%; max-width: none; }
   main { padding: 20px 14px 48px; }
   .topbar { padding: 8px 14px; position: static; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
 @media (max-width: 600px) {
   .edge { flex-wrap: wrap; }
-  .stars { flex-basis: 100%; }
+  .mark { margin-left: auto; }
+  .fname { order: 5; flex: 1 0 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
