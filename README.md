@@ -5,7 +5,7 @@ Local-first photo culling for wedding and event photographers. Import a shoot, l
 ## What it does
 - Imports a folder recursively. JPEG, and RAW through the embedded preview. RAW+JPEG pairs are treated as one photo.
 - Splits the shoot into story chapters by time gap (default 15 minutes). Chapters can be renamed; renames survive re-runs.
-- Groups near-duplicate bursts (within 10 s and similar image embedding) and suggests the sharpest frame in each group.
+- Groups near-duplicate bursts (within 10 s and similar image embedding) and suggests the sharpest frame in each group. An optional vibe text (for example "candid laughter") and a Sharp/Vibe slider in the sidebar blend sharpness with how well each frame matches the text when choosing the pick.
 - Plain-English search ("people dancing") ranked with image embeddings.
 - Keep / reject / star review with filters, counters and undo.
 - Exports XMP sidecars (stars and colour label) for RAW files, or copies the kept photos to a new folder.

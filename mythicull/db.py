@@ -78,6 +78,7 @@ MIGRATIONS: list[str] = [
     );
     """,
     "ALTER TABLE projects ADD COLUMN last_import TEXT;",  # JSON import summary
+    "ALTER TABLE projects ADD COLUMN vibe_weight REAL NOT NULL DEFAULT 0.5;",  # 0 = sharpness only, 1 = vibe only
 ]
 
 

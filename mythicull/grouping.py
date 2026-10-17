@@ -101,8 +101,12 @@ def regroup(conn: sqlite3.Connection, project_id: str) -> None:
     """Rebuild duplicate groups. A photo joins the previous photo's group when both are in one chapter, at most
     DUP_WINDOW_SECONDS apart, both embedded, and cosine similarity >= dup_threshold. The sharpest photo is the pick.
     Photo decisions are not touched."""
-    threshold = conn.execute("SELECT dup_threshold FROM projects WHERE id = ?", (project_id,)).fetchone()[0]
-    ids, matrix = embed.load_store(project_id, embed.get_embedder().model_id)
+    threshold, vibe_prompt, vibe_weight = conn.execute(
+        "SELECT dup_threshold, vibe_prompt, vibe_weight FROM projects WHERE id = ?", (project_id,)
+    ).fetchone()
+    model_id = embed.get_embedder().model_id
+    ids, matrix = embed.load_store(project_id, model_id)
+    vibe = _vibe_vector(project_id, vibe_prompt, model_id) if vibe_prompt and vibe_weight > 0 else None
     row_of = {pid: i for i, pid in enumerate(ids)}
     photos = conn.execute(
         "SELECT id, capture_time, chapter_id, sharpness FROM photos WHERE project_id = ? ORDER BY capture_time, filename",
@@ -121,10 +125,50 @@ def regroup(conn: sqlite3.Connection, project_id: str) -> None:
     updates = []
     for g in groups:
         gid = uuid.uuid4().hex
-        pick = max(g, key=lambda p: -1.0 if p["sharpness"] is None else p["sharpness"])
+        pick = _pick(g, row_of, matrix, vibe, vibe_weight)
         updates += [(gid, int(p["id"] == pick["id"]), p["id"]) for p in g]
     with conn:
         conn.executemany("UPDATE photos SET group_id = ?, is_group_pick = ? WHERE id = ?", updates)
+
+
+def _pick(g: list[sqlite3.Row], row_of: dict[str, int], matrix: np.ndarray, vibe: np.ndarray | None, weight: float) -> sqlite3.Row:
+    """Sharpest photo, or with a vibe vector the best blend of sharpness rank and vibe rank within the group.
+    Ranks only: text-to-image scores are never compared against a fixed number. Ties go to the earliest photo."""
+    sharp = lambda p: -1.0 if p["sharpness"] is None else p["sharpness"]  # noqa: E731
+    if vibe is None or len(g) == 1:
+        return max(g, key=sharp)
+    sharp_rank = {p["id"]: r for r, p in enumerate(sorted(g, key=lambda p: -sharp(p)))}
+    score = lambda p: float(matrix[row_of[p["id"]]] @ vibe) if p["id"] in row_of else -2.0  # noqa: E731
+    vibe_rank = {p["id"]: r for r, p in enumerate(sorted(g, key=lambda p: -score(p)))}
+    return min(g, key=lambda p: (1 - weight) * sharp_rank[p["id"]] + weight * vibe_rank[p["id"]])
+
+
+def _vibe_path(project_id: str):  # noqa: ANN202
+    return embed.project_dir(project_id) / "vibe.npz"
+
+
+def save_vibe_vector(project_id: str, embedder: embed.Embedder, prompt: str | None) -> None:
+    """Cache the text embedding of the vibe prompt (this loads the model). `None` removes the cache."""
+    path = _vibe_path(project_id)
+    if not prompt:
+        path.unlink(missing_ok=True)
+        return
+    vec = embedder.encode_text([prompt])[0].astype(np.float32)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name("vibe.tmp.npz")
+    np.savez(tmp, model_id=embedder.model_id, prompt=prompt, vector=vec)
+    os.replace(tmp, path)
+
+
+def _vibe_vector(project_id: str, prompt: str, model_id: str) -> np.ndarray | None:
+    """Cached vibe vector if it matches the prompt and model. Never loads the model."""
+    try:
+        with np.load(_vibe_path(project_id)) as f:
+            if str(f["model_id"]) == model_id and str(f["prompt"]) == prompt:
+                return f["vector"]
+    except (FileNotFoundError, ValueError, KeyError):
+        pass
+    return None
 
 
 def _same_burst(a: sqlite3.Row, b: sqlite3.Row, row_of: dict[str, int], matrix: np.ndarray, threshold: float) -> bool:

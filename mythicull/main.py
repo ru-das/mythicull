@@ -94,6 +94,7 @@ class ProjectOut(BaseModel):
     chapter_gap_minutes: int
     dup_threshold: float
     vibe_prompt: str | None
+    vibe_weight: float
     photo_count: int
     last_import: ImportSummary | None
 
@@ -160,6 +161,8 @@ def get_project(project_id: str) -> ProjectOut:
 class ProjectPatch(BaseModel):
     chapter_gap_minutes: int | None = Field(default=None, ge=1)
     dup_threshold: float | None = Field(default=None, ge=0, le=1)
+    vibe_prompt: str | None = None  # null or blank clears it
+    vibe_weight: float | None = Field(default=None, ge=0, le=1)
 
 
 @app.patch("/api/projects/{project_id}")
@@ -168,6 +171,18 @@ def patch_project(project_id: str, body: ProjectPatch) -> ProjectOut:
     try:
         if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
             raise HTTPException(404, "project not found")
+        vibe_changed = "vibe_prompt" in body.model_fields_set or body.vibe_weight is not None
+        if "vibe_prompt" in body.model_fields_set:
+            prompt = (body.vibe_prompt or "").strip() or None
+            try:  # encode first so a model failure saves nothing
+                grouping.save_vibe_vector(project_id, embed.get_embedder(), prompt)
+            except Exception as e:
+                raise HTTPException(503, f"vibe unavailable: {e}") from e
+            with conn:
+                conn.execute("UPDATE projects SET vibe_prompt = ? WHERE id = ?", (prompt, project_id))
+        if body.vibe_weight is not None:
+            with conn:
+                conn.execute("UPDATE projects SET vibe_weight = ? WHERE id = ?", (body.vibe_weight, project_id))
         if body.dup_threshold is not None:
             with conn:
                 conn.execute("UPDATE projects SET dup_threshold = ? WHERE id = ?", (body.dup_threshold, project_id))
@@ -175,7 +190,7 @@ def patch_project(project_id: str, body: ProjectPatch) -> ProjectOut:
             with conn:
                 conn.execute("UPDATE projects SET chapter_gap_minutes = ? WHERE id = ?", (body.chapter_gap_minutes, project_id))
             grouping.regenerate_chapters(conn, project_id)  # also regroups
-        elif body.dup_threshold is not None:
+        elif body.dup_threshold is not None or vibe_changed:
             grouping.regroup(conn, project_id)
         return _project_out(conn.execute(_PROJECT_SQL + " WHERE p.id = ?", (project_id,)).fetchone())
     finally:

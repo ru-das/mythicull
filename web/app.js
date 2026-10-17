@@ -113,6 +113,19 @@ async function showProject(id, jobId) {
       await loadChapters(np);
       await loadGrid();
     };
+    const patchVibe = async (body) => {
+      try {
+        await loadChapters(await api(`/projects/${id}`, jsonBody("PATCH", body)));
+        await loadGrid();
+      } catch (e) {
+        alert(e.message);
+        await loadChapters(await api(`/projects/${id}`)); // put the controls back to the saved values
+      }
+    };
+    const vibe = el("input", { type: "text", value: p.vibe_prompt || "", placeholder: "e.g. candid laughter", title: "Group picks lean toward photos matching this text" });
+    vibe.onchange = () => patchVibe({ vibe_prompt: vibe.value });
+    const weight = el("input", { type: "range", min: 0, max: 1, step: 0.05, value: p.vibe_weight, title: "Left: sharpest photo. Right: best match for the vibe text" });
+    weight.onchange = () => patchVibe({ vibe_weight: Number(weight.value) });
     const entry = (c) => {
       const name = c ? c.title : "All photos";
       const li = el("li", { className: (c ? c.id : null) === chapterId ? "active" : "" },
@@ -140,7 +153,7 @@ async function showProject(id, jobId) {
       }
       return li;
     };
-    side.replaceChildren(el("label", {}, "Gap (min) ", gap), el("ul", {}, entry(null), ...chapters.map(entry)));
+    side.replaceChildren(el("label", {}, "Gap (min) ", gap), el("label", {}, "Vibe ", vibe), el("label", {}, "Sharp ", weight, " Vibe"), el("ul", {}, entry(null), ...chapters.map(entry)));
   };
   const render = async () => {
     const p = await api(`/projects/${id}`);
