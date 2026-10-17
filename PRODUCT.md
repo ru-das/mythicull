@@ -26,7 +26,7 @@ Photo folders are read-only. Browsing and rating work before indexing finishes a
 - Terminology: chapter, group, pick, keep, reject, index, vibe.
 
 ## Brand Commitments
-Name: MythiCull. Redesign request pins: replace the current visual style, avoid browser-native widgets, use a variety of fonts and colors, include animation, provide dark and light modes. Color must not tint the surround of photos.
+Name: MythiCull. Mythic register (confirmed 2026-10-17): the interface draws on fairy tales (East of the Sun; no constellations, only simple icons and logos, per the user on 2026-10-17). Feature labels stay plain and humane (clear verbs and nouns); mythic voice appears only in secondary text: empty states, page headings such as the project list, toasts, and loading or progress lines. Redesign constraints still pinned: avoid browser-native widgets, use a variety of fonts and colors, include animation, provide dark and light modes. Colour must not tint the surround of photos.
 
 ## Evidence on Hand
 No real photos, logos or brand assets in the repo; tests generate synthetic JPEGs.
