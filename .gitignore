@@ -20,3 +20,5 @@ __pycache__/
 .impeccable/review/
 .impeccable/mocks/
 .impeccable/build/
+
+.agents/
