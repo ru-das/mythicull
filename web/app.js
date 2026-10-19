@@ -163,7 +163,11 @@ function slider({ value, min = 0, max = 1, step = 0.05, title = "", onCommit }) 
   };
   root.onpointerdown = (e) => { root.setPointerCapture(e.pointerId); root.classList.add("drag"); root.focus(); fromPointer(e); };
   root.onpointermove = (e) => { if (root.classList.contains("drag")) fromPointer(e); };
-  root.onpointerup = () => { root.classList.remove("drag"); commit(); };
+  const finish = () => {
+    root.classList.remove("drag");
+    commit();
+  };
+  root.onpointerup = root.onpointercancel = root.onlostpointercapture = finish;
   root.onkeydown = (e) => {
     const d = { ArrowRight: step, ArrowUp: step, ArrowLeft: -step, ArrowDown: -step, PageUp: step * 4, PageDown: -step * 4 }[e.key];
     if (e.key === "Home") set(min);
@@ -174,14 +178,14 @@ function slider({ value, min = 0, max = 1, step = 0.05, title = "", onCommit }) 
     timer = setTimeout(commit, 400);
     e.preventDefault();
   };
-  root.onblur = commit;
+  root.onblur = finish;
   paint();
   return root;
 }
 
-function progressBar() {
+function progressBar(label = "Photo analysis") {
   const fill = el("i");
-  const root = el("div", { className: "bar", attrs: { role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "1", "aria-valuenow": "0" } }, fill);
+  const root = el("div", { className: "bar", attrs: { role: "progressbar", "aria-label": label, "aria-valuemin": "0", "aria-valuemax": "1", "aria-valuenow": "0" } }, fill);
   return {
     root,
     set(done, total, running = true) {
@@ -193,10 +197,11 @@ function progressBar() {
   };
 }
 
+let disclosureId = 0;
 function panel(label, ...content) {
   const body = el("div", { className: "panel-body" }, ...content);
-  const wrap = el("div", { className: "panel" }, el("div", { className: "panel-inner" }, body));
-  const head = el("button", { type: "button", className: "panel-head", attrs: { "aria-expanded": "false" } }, label, icon("chevron"));
+  const wrap = el("div", { id: `disclosure-${++disclosureId}`, className: "panel" }, el("div", { className: "panel-inner" }, body));
+  const head = el("button", { type: "button", className: "panel-head", attrs: { "aria-expanded": "false", "aria-controls": wrap.id } }, label, icon("chevron"));
   head.onclick = () => {
     const open = !wrap.classList.contains("open");
     wrap.classList.toggle("open", open);
@@ -252,6 +257,54 @@ function roll(node, value) {
     return el("i", { className: changed ? "d flip" : "d", textContent: d, style: `--k:${next.length - 1 - i}`, attrs: { "aria-hidden": "true" } });
   }));
 }
+
+/* Modal stack keeps background inert even when setup opens above a preview. */
+const modals = [];
+let previousOverflow = "";
+function syncModals() {
+  const active = modals.at(-1)?.root;
+  for (const node of document.body.children) {
+    if (active && node !== active) {
+      if (!node.hasAttribute("data-modal-inert")) {
+        node.dataset.modalInert = String(node.inert);
+        node.inert = true;
+      }
+    } else if (node.hasAttribute("data-modal-inert")) {
+      node.inert = node.dataset.modalInert === "true";
+      delete node.dataset.modalInert;
+    }
+  }
+  document.body.style.overflow = active ? "hidden" : previousOverflow;
+}
+function beginModal(root, initial, dismiss) {
+  if (!modals.length) previousOverflow = document.body.style.overflow;
+  modals.push({ root, opener: document.activeElement, initial, dismiss });
+  syncModals();
+  initial.focus({ preventScroll: true });
+}
+function endModal(root, restore = true) {
+  const index = modals.findIndex(m => m.root === root);
+  if (index < 0) return;
+  const [modal] = modals.splice(index, 1);
+  syncModals();
+  if (restore) {
+    const target = modal.opener?.isConnected && !modal.opener.closest("[inert]")
+      ? modal.opener : modals.at(-1)?.initial || cells[selected] || document.getElementById("home");
+    target?.focus({ preventScroll: true });
+  }
+}
+document.addEventListener("keydown", e => {
+  const modal = modals.at(-1);
+  if (!modal) return;
+  if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); modal.dismiss(); }
+  if (e.key !== "Tab") return;
+  const items = [...modal.root.querySelectorAll('button:not(:disabled), input:not(:disabled), [href], [tabindex="0"]')]
+    .filter(node => !node.hidden && node.getClientRects().length);
+  if (!items.length) return;
+  const next = (items.indexOf(document.activeElement) + (e.shiftKey ? -1 : 1) + items.length) % items.length;
+  e.preventDefault();
+  items[next].focus();
+}, true);
 
 /* ---------- project list ---------- */
 
@@ -324,8 +377,8 @@ async function showProject(id, jobId) {
   const status = el("div");
   const page = el("div", { className: "view" }, el("div", { className: "proj-head" }, head, status));
   app.replaceChildren(page);
-  const grid = el("div", { className: "grid", attrs: { role: "listbox", "aria-label": "Photos" } });
-  const side = el("nav", { className: "sidebar", attrs: { "aria-label": "Chapters and settings" } });
+  const grid = el("div", { className: "grid", attrs: { role: "grid", "aria-label": "Photos" } });
+  const side = el("nav", { id: "chapter-sidebar", className: "sidebar", attrs: { "aria-label": "Chapters and settings" } });
   let chapterId = null;
   const searchMsg = el("span", { className: "hit muted" });
   const searchBox = el("input", { type: "text", id: "search", placeholder: "Search: people dancing…", title: "Describe a photo, e.g. people dancing. Press / to focus search.", attrs: { "aria-label": "Search photos" } });
@@ -553,11 +606,11 @@ async function showProject(id, jobId) {
         runExport(`/projects/${id}/export/copy`, { destination: dest.value, per_chapter: perChapter }, "Copy export");
       } })),
     exportMsg);
-  const sideToggle = el("button", { type: "button", className: "btn side-toggle", textContent: "Chapters and settings", attrs: { "aria-expanded": "false" } });
+  const sideToggle = el("button", { type: "button", className: "btn side-toggle", textContent: "Chapters and settings", attrs: { "aria-controls": "chapter-sidebar", "aria-expanded": "false" } });
   sideToggle.onclick = () => { const open = side.classList.toggle("open"); sideToggle.setAttribute("aria-expanded", String(open)); };
   page.append(el("div", { className: "workbar" }, indexBox, counters, searchMsg, el("span", { className: "push" }, exp.head)), exp.wrap, sideToggle, el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
-  const bar = progressBar();
+  const bar = progressBar("Photo import");
   const label = el("p", { className: "muted mono" });
   status.replaceChildren(bar.root, label);
   const tick = async () => {
@@ -589,7 +642,7 @@ const undoStack = [];
 let cells = [];
 let enterAnim = false; // stagger tiles in only on a fresh load, not on every re-render
 const overlay = el("div", { className: "overlay", attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Photo preview", "aria-hidden": "true" } });
-let lastFocus = null;
+
 const bigImg = el("img", { className: "lb-img", alt: "" });
 const caption = el("div", { className: "caption" });
 const closeBtn = el("button", { type: "button", className: "lb-close", title: "Close preview (Esc)", attrs: { "aria-label": "Close preview" } }, icon("close"));
@@ -612,8 +665,8 @@ function paintCaption(p, i) {
 
 function select(i) {
   selected = Math.min(Math.max(i, 0), photos.length - 1);
-  cells.forEach((c, k) => { c.classList.toggle("sel", k === selected); c.setAttribute("aria-selected", String(k === selected)); });
-  cells[selected]?.scrollIntoView({ block: "nearest" });
+  cells.forEach((c, k) => { c.classList.toggle("sel", k === selected); c.setAttribute("aria-selected", String(k === selected)); c.tabIndex = k === selected ? 0 : -1; });
+  if (current < 0) cells[selected]?.scrollIntoView({ block: "nearest" });
 }
 
 function openPreview(i) {
@@ -622,12 +675,11 @@ function openPreview(i) {
     const wasOpen = overlay.classList.contains("open");
     overlay.classList.remove("open");
     overlay.setAttribute("aria-hidden", "true");
-    if (wasOpen && lastFocus && lastFocus !== document.body && document.contains(lastFocus)) lastFocus.focus();
-    lastFocus = null;
+    if (wasOpen) endModal(overlay);
     return;
   }
   const wasOpen = current >= 0;
-  if (!wasOpen) lastFocus = document.activeElement;
+
   current = i;
   select(i);
   const p = photos[i];
@@ -641,7 +693,7 @@ function openPreview(i) {
   paintCaption(p, i);
   overlay.classList.add("open");
   overlay.setAttribute("aria-hidden", "false");
-  closeBtn.focus({ preventScroll: true });
+  if (!wasOpen) beginModal(overlay, closeBtn, () => openPreview(-1));
 }
 
 function paintCell(i) {
@@ -734,7 +786,7 @@ function renderGrid() {
   enterAnim = false;
   gridEl.replaceChildren(...photos.map((p, i) => {
     const frame = el("div", { className: "frame" }, el("img", { loading: "lazy", alt: p.filename, src: `/api/photos/${p.id}/thumb` }));
-    const cell = el("div", { className: "cell" + (animate && i < 40 ? " enter" : "") + (view === "best" && !searchQ && expanded.has(p.group_id) && p.is_group_pick ? " pick" : ""), style: `--d:${i}`, attrs: { role: "option" } },
+    const cell = el("div", { className: "cell" + (animate && i < 40 ? " enter" : "") + (view === "best" && !searchQ && expanded.has(p.group_id) && p.is_group_pick ? " pick" : ""), style: `--d:${i}`, attrs: { role: "gridcell" } },
       frame,
       el("div", { className: "edge" }, el("i", { className: "dx" }), el("span", { className: "fno", textContent: `${i + 1}A` }), el("span", { className: "fname", textContent: p.filename }), el("span", { className: "mark" }), el("span", { className: "stars" })));
     if (p.time_source === "mtime") frame.append(el("span", { className: "badge", title: "Capture time unavailable: using the file’s last modified time", textContent: "!" }));
@@ -751,13 +803,16 @@ function renderGrid() {
           if (open) expanded.delete(p.group_id);
           else expanded.add(p.group_id);
           renderGrid();
+          cells[Math.min(i, cells.length - 1)]?.querySelector(".count")?.focus();
         },
       }));
     }
+    cell.onfocus = () => select(i);
     cell.onclick = () => openPreview(i);
-    return cell;
+    const row = el("div", { attrs: { role: "row" }, style: "display:contents" }, cell);
+    return row;
   }));
-  cells = [...gridEl.children];
+  cells = [...gridEl.querySelectorAll(".cell")];
   photos.forEach((_, i) => paintCell(i));
   select(selected);
 }
@@ -773,7 +828,7 @@ document.addEventListener("keydown", (e) => {
   if (document.querySelector(".model-dialog")) return;
   const t = e.target;
   const box = document.getElementById("search");
-  if (e.key === "/" && box && !t.matches("input, textarea")) {
+  if (current < 0 && e.key === "/" && box && !t.matches("input, textarea")) {
     box.focus();
     e.preventDefault();
     return;
@@ -787,7 +842,7 @@ document.addEventListener("keydown", (e) => {
   if (!photos.length || e.ctrlKey || e.metaKey || e.altKey) return;
   if ((e.key === "Enter" || e.key === " ") && t.closest("button, [role=radio], [role=switch]")) return; // let the focused control act
   const open = current >= 0;
-  const move = (i) => (open ? openPreview(Math.min(Math.max(i, 0), photos.length - 1)) : select(i));
+  const move = (i) => (open ? openPreview(Math.min(Math.max(i, 0), photos.length - 1)) : (select(i), cells[selected]?.focus({ preventScroll: true })));
   const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
   const key = e.key.toLowerCase();
   if (step !== undefined) move(selected + step);
@@ -807,6 +862,7 @@ function showError(e) {
 }
 
 function route() {
+  openPreview(-1);
   clearTimeout(pollTimer);
   clearTimeout(indexTimer);
   photos = [];
@@ -836,7 +892,7 @@ async function promptModel() {
   if (document.querySelector(".model-dialog")) return;
   const status = await api("/model");
   if (status.ready) return;
-  const previous = document.activeElement;
+
   const heading = el("h2", { id: "model-heading", textContent: "Download the AI model?" });
   const message = el("p", { className: "muted", textContent: "Search and duplicate grouping need a one-time download from Hugging Face. After that, the model works offline. You can browse and rate photos without it." });
   const progress = progressBar();
@@ -849,7 +905,7 @@ async function promptModel() {
   const card = el("section", { className: "model-card", attrs: { role: "dialog", "aria-modal": "true", "aria-labelledby": "model-heading" } }, heading, message, progress.root, label, error, el("div", { className: "model-actions" }, start, later));
   const backdrop = el("div", { className: "model-dialog" }, card);
   let timer;
-  const close = () => { clearTimeout(timer); backdrop.remove(); if (previous?.isConnected) previous.focus(); };
+  const close = () => { clearTimeout(timer); endModal(backdrop); backdrop.remove(); };
   later.onclick = close;
   const track = async (id) => {
     start.disabled = true;
@@ -879,17 +935,8 @@ async function promptModel() {
     label.textContent = "Checking download size with Hugging Face…";
     try { await track((await api("/model/download", { method: "POST" })).job_id); } catch (e) { failed(e); }
   };
-  backdrop.onkeydown = (e) => {
-    e.stopPropagation();
-    if (e.key === "Escape") { e.preventDefault(); close(); }
-    if (e.key === "Tab") {
-      const buttons = [...card.querySelectorAll("button")].filter(b => !b.disabled && !b.hidden);
-      const next = (buttons.indexOf(document.activeElement) + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
-      e.preventDefault(); buttons[next].focus();
-    }
-  };
   document.body.append(backdrop);
-  start.focus();
+  beginModal(backdrop, start, close);
   if (status.job_id) { later.focus(); await track(status.job_id).catch(failed); }
 }
 promptModel().catch(showError);

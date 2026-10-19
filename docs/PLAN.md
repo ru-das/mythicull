@@ -89,3 +89,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **U2 East of the Sun restyle.** Look only, no behaviour change: teal night and parchment themes, gilt accent, vermilion for rejects, Federo + Figtree + Martian Mono, sun-over-horizon logo and favicon, finer icon strokes. No constellations (user choice).
 
 - [x] **U6 Clear interface wording.** Replace vague labels with plain language and explain suggestion settings, chapter breaks, analysis and exports. Done when copy is reviewed in context and pytest passes.
+
+- [x] **U7 Accessible controls and focus.** Roving photo focus, modal containment, interrupted sliders, labeled progress/disclosures and explicit reduced motion.
+- [ ] **U8 Complete preview interaction.** Visible navigation, decisions and stars with synchronized state, undo, failures and responsive image space.
+- [ ] **U9 Navigation, responsive layout and visual polish.** Chapters first, collapsed analysis settings, touch targets, neutral surrounds and accessible empty states; browser regression and full-flow checks.

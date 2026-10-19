@@ -270,7 +270,14 @@ main { padding: 28px 24px 60px; }
   .fname { order: 5; flex: 1 0 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
+  .view, .rolls li, .cell.enter, .d.flip, .mark.stamp, .stars.pop,
+  .toast, .toast.out, .shake, .theme-btn .ic, .lb-img.swap, .bar.run > i { animation: none; }
+  .brand-mark, .btn, .seg-ind, .switch-track, .switch-track::after,
+  .slider-thumb, .bar > i, .panel, .panel-inner, .panel-head .ic,
+  .roll > *, .cell, .frame img, .count, .overlay, .overlay .lb-img { transition: none; }
+  html.theming *, html.theming *::before, html.theming *::after { transition: none !important; }
+  .cell:hover .frame img, .slider:hover .slider-thumb, .slider.drag .slider-thumb,
+  .roll:hover > *, .brand:hover .brand-mark { transform: none; }
 }
 
 /* Model setup stays available independently of the current project. */
