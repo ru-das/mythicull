@@ -646,20 +646,48 @@ const overlay = el("div", { className: "overlay", attrs: { role: "dialog", "aria
 const bigImg = el("img", { className: "lb-img", alt: "" });
 const caption = el("div", { className: "caption" });
 const closeBtn = el("button", { type: "button", className: "lb-close", title: "Close preview (Esc)", attrs: { "aria-label": "Close preview" } }, icon("close"));
-overlay.append(bigImg, caption, closeBtn);
-overlay.onclick = () => openPreview(-1);
+const imageStage = el("div", { className: "lb-stage" }, bigImg);
+const previousBtn = el("button", { type: "button", className: "btn", textContent: "Previous", onclick: () => openPreview(current - 1) });
+const nextBtn = el("button", { type: "button", className: "btn", textContent: "Next", onclick: () => openPreview(current + 1) });
+const decisionButtons = [["keep", "Keep"], ["reject", "Reject"], [null, "Clear decision"]].map(([status, label]) =>
+  el("button", { type: "button", className: "btn", textContent: label, onclick: () => rate({ status }, status !== null), attrs: { "aria-pressed": "false" } }));
+const starButtons = Array.from({ length: 6 }, (_, stars) => el("button", {
+  type: "button", className: "btn", textContent: String(stars),
+  attrs: { "aria-label": stars ? `${stars} star${stars === 1 ? "" : "s"}` : "Clear stars", "aria-pressed": "false" },
+  onclick: () => rate({ stars }),
+}));
+const actions = el("div", { className: "lb-actions" },
+  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Photo navigation" } }, previousBtn, nextBtn),
+  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Review decision" } }, ...decisionButtons),
+  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Star rating" } }, el("span", { textContent: "Stars" }), ...starButtons));
+overlay.append(imageStage, el("div", { className: "lb-footer" }, caption, actions), closeBtn);
+closeBtn.onclick = () => openPreview(-1);
+overlay.onclick = e => { if (e.target === overlay || e.target === imageStage) openPreview(-1); };
 document.body.append(overlay);
 
 const starsEl = (n) => el("span", { className: "stars", title: n ? `${n} star${n > 1 ? "s" : ""}` : "" }, ...Array.from({ length: n }, () => icon("star")));
 
+function paintActions(p, i) {
+  previousBtn.disabled = i === 0;
+  nextBtn.disabled = i === photos.length - 1;
+  decisionButtons.forEach((b, k) => {
+    b.disabled = decisionBusy;
+    b.setAttribute("aria-pressed", String(p.status === ["keep", "reject", null][k]));
+  });
+  starButtons.forEach((b, k) => {
+    b.disabled = decisionBusy;
+    b.setAttribute("aria-pressed", String(p.stars === k));
+  });
+}
 function paintCaption(p, i) {
+  paintActions(p, i);
   caption.replaceChildren(
     el("span", { className: "lb-no", textContent: `${i + 1} / ${photos.length}` }),
     el("strong", { textContent: p.filename }),
     el("span", { className: "lb-time", textContent: p.capture_time || "" }),
     ...(p.time_source === "mtime" ? [el("span", { className: "lb-warn", textContent: "file time, not EXIF" })] : []),
-    ...(p.status ? [el("span", { className: "chip " + p.status, textContent: p.status === "keep" ? "Keep" : "Reject" })] : []),
-    starsEl(p.stars),
+    el("span", { className: "chip " + (p.status || ""), textContent: p.status === "keep" ? "Keep" : p.status === "reject" ? "Reject" : "Unreviewed" }),
+    el("span", { textContent: `${p.stars} stars` }),
     el("span", { className: "lb-hint", textContent: "← → move · P keep · X reject · 0–5 stars · Esc close" }));
 }
 
@@ -738,16 +766,30 @@ async function save(p, next) {
   }
 }
 
-async function decide(change) {
+let decisionBusy = false;
+async function rate(change, advance = false) {
   const p = photos[selected];
-  if (!p) return;
+  if (!p || decisionBusy) return;
+  decisionBusy = true;
   const old = await save(p, { status: p.status, stars: p.stars, ...change });
-  if (old) undoStack.push({ p, old });
+  decisionBusy = false;
+  if (old && allPhotos.includes(p)) undoStack.push({ p, old });
+  if (old && advance && autoAdvance && photos[selected] === p && selected < photos.length - 1) {
+    if (current >= 0) openPreview(selected + 1);
+    else { select(selected + 1); cells[selected]?.focus({ preventScroll: true }); }
+  }
+  if (current >= 0) paintActions(photos[current], current);
 }
 
 async function undo() {
+  if (decisionBusy) return;
   const last = undoStack.pop();
-  if (last) await save(allPhotos.find((q) => q.id === last.p.id) || last.p, last.old); // grid may have reloaded
+  if (!last) return;
+  decisionBusy = true;
+  const result = await save(allPhotos.find((q) => q.id === last.p.id) || last.p, last.old);
+  decisionBusy = false;
+  if (!result) undoStack.push(last);
+  if (current >= 0) paintActions(photos[current], current);
 }
 
 let allPhotos = [];
@@ -849,10 +891,9 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "Enter" || e.key === " ") openPreview(open ? -1 : selected);
   else if (e.key === "Escape") openPreview(-1);
   else if (key === "p" || key === "x") {
-    decide({ status: key === "p" ? "keep" : "reject" });
-    if (autoAdvance) move(selected + 1);
-  } else if (key === "u") decide({ status: null });
-  else if (/^[0-5]$/.test(e.key)) decide({ stars: Number(e.key) });
+    rate({ status: key === "p" ? "keep" : "reject" }, true);
+  } else if (key === "u") rate({ status: null });
+  else if (/^[0-5]$/.test(e.key)) rate({ stars: Number(e.key) });
   else return;
   e.preventDefault();
 });

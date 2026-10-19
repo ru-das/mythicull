@@ -224,7 +224,7 @@ main { padding: 28px 24px 60px; }
 /* preview */
 .overlay { position: fixed; inset: 0; z-index: 50; display: grid; grid-template-rows: minmax(0, 1fr) auto; background: rgba(4, 18, 23, .96); visibility: hidden; opacity: 0; transition: opacity .25s ease, visibility 0s .25s; }
 .overlay.open { visibility: visible; opacity: 1; transition-delay: 0s; }
-.overlay .lb-img { place-self: center; max-width: 96vw; max-height: calc(100vh - 90px); object-fit: contain; transform: scale(.96); transition: transform .4s var(--ease); }
+.overlay .lb-img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; transform: scale(.96); transition: transform .4s var(--ease); }
 .overlay.open .lb-img { transform: none; }
 .lb-img.swap { animation: lb-swap .25s var(--ease); }
 .caption { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 12px 20px 16px; background: #08212a; border-top: 1px solid #24535f; color: #d6e2de; font-size: 15px; }
@@ -287,3 +287,13 @@ main { padding: 28px 24px 60px; }
 .model-card p { line-height: 1.6; overflow-wrap: anywhere; }
 .model-progress { font-size: 12px; }
 .model-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+
+/* Preview controls stay outside the image's allocated viewport space. */
+.lb-stage { min-height: 0; min-width: 0; padding: 64px 2vw 12px; display: flex; align-items: center; justify-content: center; }
+.lb-footer { max-height: 50dvh; overflow: auto; background: var(--field); color: var(--ink); }
+.caption strong { overflow-wrap: anywhere; min-width: 0; }
+.lb-actions, .lb-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lb-actions { padding: 12px 20px 16px; gap: 12px 24px; }
+.lb-actions .btn { min-height: 44px; min-width: 44px; justify-content: center; }
+.lb-actions [aria-pressed="true"] { background: var(--gilt); border-color: var(--gilt); color: var(--on-gilt); }
+.lb-close { width: 44px; height: 44px; }
