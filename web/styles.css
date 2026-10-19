@@ -80,12 +80,14 @@ ul { list-style: none; margin: 0; padding: 0; }
 .search .clear { display: none; background: none; border: 0; padding: 2px; color: var(--gilt); }
 .search.has .clear { display: grid; }
 
-.seg { position: relative; display: inline-flex; padding: 3px; background: #08212a; border: 1px solid #24535f; border-radius: 3px; isolation: isolate; }
-.seg-ind { position: absolute; z-index: -1; top: 3px; bottom: 3px; left: 0; background: var(--gilt); border-radius: 2px; transition: transform .35s var(--ease), width .35s var(--ease); }
-.seg-b { position: relative; height: 34px; padding: 0 11px; background: none; border: 0; color: #cfe0dc; font: 600 14px var(--ui); transition: color .2s; }
+.seg { position: relative; display: inline-flex; flex: none; gap: 2px; max-width: 100%; padding: 3px; background: var(--field); border: 1px solid var(--line); border-radius: 6px; isolation: isolate; }
+.seg.in-bar { background: #08212a; --ink: #f3ead2; --muted: #a2bcbc; --line: #24535f; }
+.seg-ind { position: absolute; z-index: -1; top: 3px; bottom: 3px; left: 0; background: var(--gilt); border-radius: 3px; pointer-events: none; transition: transform .25s var(--ease), width .25s var(--ease); }
+.seg-b { position: relative; min-width: 44px; height: 36px; padding: 0 12px; white-space: nowrap; background: none; border: 0; border-radius: 3px; color: var(--muted); font: 600 14px var(--ui); transition: color .15s, background-color .15s; }
 .seg-b.on { color: var(--on-gilt); }
-.seg-b:not(.on):hover { color: #fff8e4; }
-.seg:not(.in-bar) { background: var(--field); border: 1px solid var(--line); }
+.seg-b:not(.on):hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.seg-b:focus-visible { outline-offset: -3px; }
+.seg-b.on:focus-visible { outline-color: var(--on-gilt); }
 
 .counters { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted); }
 .counters b { color: var(--ink); }
@@ -255,6 +257,7 @@ main { padding: 28px 24px 60px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
 @media (max-width: 600px) {
+  .seg-b { height: 40px; padding-inline: 10px; }
   .edge { flex-wrap: wrap; }
   .mark { margin-left: auto; }
   .fname { order: 5; flex: 1 0 100%; }

@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "federo",
+        "createdAt": "2026-10-19T02:42:24.453Z",
+        "reason": "U2 user-selected East of the Sun restyle; docs/PROGRESS.md records Federo as the incumbent display font"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "figtree",
+        "createdAt": "2026-10-19T02:42:24.471Z",
+        "reason": "U2 user-selected East of the Sun restyle; docs/PROGRESS.md records Figtree as the incumbent UI font"
+      }
+    ]
+  }
+}

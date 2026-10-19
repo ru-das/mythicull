@@ -79,7 +79,7 @@ function seg(label, options, value, onChange, inBar = false) {
     const b = btns[i];
     if (!b || !b.offsetWidth) return;
     ind.style.width = b.offsetWidth + "px";
-    ind.style.transform = `translateX(${b.offsetLeft - 3}px)`;
+    ind.style.transform = `translateX(${b.offsetLeft}px)`;
   };
   const paint = () => {
     btns.forEach((b, i) => {
