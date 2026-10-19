@@ -80,6 +80,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: `/api/model` tests pass. Real download not run here (no network to HF).
 
 ## UI
+- [x] **U5 Animation cleanup.** Remove layout transitions from segment indicators, progress fills and project-row hover; preserve feedback with transforms.
 - [x] **U4 Native folder selection.** Choose import and copy-export folders through a desktop dialog; handle cancellation, unavailable desktop support and local-only access. API tests and mocked-dialog browser flows pass; real OS desktop smoke checks remain open.
 - [x] **U3 Segmented control polish.** Align the selected indicator; refine spacing, hover and focus states across review filters and Best/All, including both themes and narrow screens.
 - [x] **U1 UI redesign.** Replace the visual style of `web/` (Yellow Box film-stock world), custom controls instead of browser widgets, several fonts, animation, dark and light themes. Flow, routes and API calls unchanged.

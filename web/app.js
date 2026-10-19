@@ -186,7 +186,7 @@ function progressBar() {
     root,
     set(done, total, running = true) {
       const frac = total ? Math.min(1, done / total) : 0;
-      fill.style.width = frac * 100 + "%";
+      fill.style.transform = `scaleX(${frac})`;
       root.setAttribute("aria-valuenow", frac.toFixed(3));
       root.classList.toggle("run", running);
     },

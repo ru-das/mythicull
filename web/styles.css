@@ -87,7 +87,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 .seg { position: relative; display: inline-flex; flex: none; gap: 2px; max-width: 100%; padding: 3px; background: var(--field); border: 1px solid var(--line); border-radius: 6px; isolation: isolate; }
 .seg.in-bar { background: #08212a; --ink: #f3ead2; --muted: #a2bcbc; --line: #24535f; }
-.seg-ind { position: absolute; z-index: -1; top: 3px; bottom: 3px; left: 0; background: var(--gilt); border-radius: 3px; pointer-events: none; transition: transform .25s var(--ease), width .25s var(--ease); }
+.seg-ind { position: absolute; z-index: -1; top: 3px; bottom: 3px; left: 0; background: var(--gilt); border-radius: 3px; pointer-events: none; transition: transform .25s var(--ease); }
 .seg-b { position: relative; min-width: 44px; height: 36px; padding: 0 12px; white-space: nowrap; background: none; border: 0; border-radius: 3px; color: var(--muted); font: 600 14px var(--ui); transition: color .15s, background-color .15s; }
 .seg-b.on { color: var(--on-gilt); }
 .seg-b:not(.on):hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
@@ -122,7 +122,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .slider-ends { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
 
 .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
-.bar > i { display: block; height: 100%; width: 0; background: var(--gilt); border-radius: 4px; transition: width .45s var(--ease); }
+.bar > i { display: block; height: 100%; width: 100%; background: var(--gilt); border-radius: 4px; transform: scaleX(0); transform-origin: left; transition: transform .45s var(--ease); }
 .bar.run > i { background: linear-gradient(90deg, var(--gilt) 0%, #f0d48c 50%, var(--gilt) 100%); background-size: 200% 100%; animation: sheen 1.2s linear infinite; }
 
 .panel-head { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; background: none; border: 2px solid var(--ink); border-radius: 3px; font: 700 15px var(--ui); }
@@ -150,8 +150,10 @@ main { padding: 28px 24px 60px; }
 .newform .btn { justify-self: start; }
 .rolls { border-top: 1px solid var(--gilt); }
 .rolls li { animation: row-in .5s var(--ease) both; animation-delay: calc(var(--d, 0) * 50ms); }
-.roll { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 16px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); transition: background-color .2s, padding-left .3s var(--ease); }
-.roll:hover { background: var(--panel); padding-left: 20px; }
+.roll { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 16px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); transition: background-color .2s; }
+.roll:hover { background: var(--panel); }
+.roll > * { transition: transform .3s var(--ease); }
+.roll:hover > * { transform: translateX(8px); }
 .roll-no { color: var(--edge); font-size: 14px; }
 .roll-name { display: block; font: 400 22px/1.1 var(--display); overflow-wrap: anywhere; }
 .roll-folder { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
