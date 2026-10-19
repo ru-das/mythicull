@@ -80,6 +80,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
   Done when: `/api/model` tests pass. Real download not run here (no network to HF).
 
 ## UI
+- [x] **U4 Native folder selection.** Choose import and copy-export folders through a desktop dialog; handle cancellation, unavailable desktop support and local-only access. API tests and mocked-dialog browser flows pass; real OS desktop smoke checks remain open.
 - [x] **U3 Segmented control polish.** Align the selected indicator; refine spacing, hover and focus states across review filters and Best/All, including both themes and narrow screens.
 - [x] **U1 UI redesign.** Replace the visual style of `web/` (Yellow Box film-stock world), custom controls instead of browser widgets, several fonts, animation, dark and light themes. Flow, routes and API calls unchanged.
 - [x] **U2 East of the Sun restyle.** Look only, no behaviour change: teal night and parchment themes, gilt accent, vermilion for rejects, Federo + Figtree + Martian Mono, sun-over-horizon logo and favicon, finer icon strokes. No constellations (user choice).

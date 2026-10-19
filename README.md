@@ -34,11 +34,13 @@ Environment variables:
 - `MYTHICULL_BATCH_SIZE`: indexing batch size (default 8).
 
 ## Usage
-1. Create a project: name plus the full path of the photo folder on the machine running the server. Import runs in the background.
+1. Create a project: enter a name and use **Choose folder…** to select the photo folder. Import runs in the background.
 2. Click **Index photos**. Indexing can be cancelled and resumes where it stopped. Chapters and Best/All grouping appear when it finishes.
 3. Cull. Best view shows one pick per duplicate group; click the count badge to expand a group.
 4. The sun/moon button in the top bar switches between dark and light mode. Dark is the default and your choice is remembered in the browser.
-5. Use the **Export** panel: write XMP sidecars, or copy kept photos to a destination folder (optionally one folder per chapter).
+5. Use the **Export** panel: write XMP sidecars, or choose a destination folder and copy kept photos (optionally one folder per chapter).
+
+Folder selection opens on the computer running MythiCull. Use the browser on that same desktop via `localhost` or `127.0.0.1`. Windows and macOS use Python's Tk folder dialog; Linux uses Zenity or KDialog when installed, with Tk as a fallback (`python3-tk` on Debian/Ubuntu). If no desktop dialog is available, the UI offers manual path entry. XMP export writes beside the originals and needs no destination selection.
 
 Your photo folder is read-only. The only files MythiCull ever writes there are `.xmp` sidecars, and it will not overwrite one it did not create. Copy export never overwrites files and refuses a destination inside the photo folder.
 

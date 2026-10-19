@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -13,7 +13,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from mythicull import config, db, embed, export, grouping, ingest, jobs, search
+from mythicull import config, db, embed, export, folders, grouping, ingest, jobs, search
 
 
 @asynccontextmanager
@@ -25,6 +25,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="MythiCull", lifespan=lifespan)
+
+
+class FolderChoiceIn(BaseModel):
+    purpose: Literal["import", "export"]
+
+
+class FolderChoiceOut(BaseModel):
+    folder: str | None
+
+
+@app.post("/api/folders/choose")
+def choose_folder(body: FolderChoiceIn, request: Request) -> FolderChoiceOut:
+    # Only the local app may open desktop windows; reject cross-site requests too.
+    if (request.url.hostname not in {"localhost", "127.0.0.1", "::1"}
+            or not request.client
+            or request.client.host not in {"127.0.0.1", "::1"}
+            or request.headers.get("origin") != str(request.base_url).rstrip("/")):
+        raise HTTPException(403, "Open MythiCull on localhost to choose a folder on this computer.")
+    try:
+        return FolderChoiceOut(folder=folders.choose_folder(body.purpose))
+    except BlockingIOError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
 
 
 class Failure(BaseModel):

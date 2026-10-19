@@ -211,6 +211,36 @@ function field(label, input) {
   return el("label", { className: "field" }, el("span", { textContent: label }), input);
 }
 
+function folderField(label, purpose, input) {
+  input.readOnly = true;
+  input.placeholder = "No folder selected";
+  const error = el("p", { className: "error", attrs: { role: "alert" } });
+  const manual = el("button", { type: "button", className: "btn text", textContent: "Enter path manually", hidden: true, onclick: () => {
+    input.readOnly = false;
+    input.focus();
+  } });
+  const choose = el("button", { type: "button", className: "btn", textContent: "Choose folder…", attrs: { "aria-label": `Choose ${label.toLowerCase()}` }, onclick: async () => {
+    choose.disabled = true;
+    choose.textContent = "Choosing…";
+    error.textContent = "";
+    try {
+      const out = await api("/folders/choose", jsonBody("POST", { purpose }));
+      if (out.folder) {
+        input.value = out.folder;
+        input.readOnly = true;
+        manual.hidden = true;
+      }
+    } catch (e) {
+      error.textContent = e.message;
+      manual.hidden = false;
+    } finally {
+      choose.disabled = false;
+      choose.textContent = "Choose folder…";
+    }
+  } });
+  return el("div", { className: "field folder-field" }, field(label, input), choose, error, manual);
+}
+
 function roll(node, value) {
   const next = String(value);
   const prev = node.dataset.v;
@@ -229,12 +259,12 @@ async function showList() {
   const projects = await api("/projects");
   const msg = el("p", { className: "error", attrs: { role: "alert" } });
   const name = el("input", { placeholder: "Project name" });
-  const folder = el("input", { placeholder: "Photo folder path, e.g. /home/me/shoots/wedding" });
-  const form = el("form", { className: "newform", noValidate: true }, field("Project name", name), field("Photo folder", folder), el("button", { className: "btn primary", textContent: "Create and import" }), msg);
+  const folder = el("input");
+  const form = el("form", { className: "newform", noValidate: true }, field("Project name", name), folderField("Photo folder", "import", folder), el("button", { className: "btn primary", textContent: "Create and import" }), msg);
   form.onsubmit = async (ev) => {
     ev.preventDefault();
     if (!name.value.trim() || !folder.value.trim()) {
-      msg.textContent = "Enter a project name and a photo folder.";
+      msg.textContent = "Enter a project name and choose a photo folder.";
       form.classList.remove("shake");
       void form.offsetWidth;
       form.classList.add("shake");
@@ -506,13 +536,16 @@ async function showProject(id, jobId) {
       exportMsg.replaceChildren(el("p", { className: "error", textContent: e.message }));
     }
   };
-  const dest = el("input", { placeholder: "e.g. /home/me/exports/wedding" });
+  const dest = el("input");
   let perChapter = false;
   const exp = panel("Export",
     el("div", { className: "row" }, el("button", { type: "button", className: "btn", textContent: "Write XMP sidecars", title: "Keep/reject/stars for Lightroom or darktable (RAW only)", onclick: () => runExport(`/projects/${id}/export/xmp`, null, "XMP export") })),
-    el("div", { className: "row" }, field("Destination folder for copy", dest),
+    el("div", { className: "row" }, folderField("Destination folder for copy", "export", dest),
       toggle("One folder per chapter", false, (on) => { perChapter = on; }),
-      el("button", { type: "button", className: "btn", textContent: "Copy kept photos", onclick: () => runExport(`/projects/${id}/export/copy`, { destination: dest.value, per_chapter: perChapter }, "Copy export") })),
+      el("button", { type: "button", className: "btn", textContent: "Copy kept photos", onclick: () => {
+        if (!dest.value.trim()) { toast("Choose a destination folder first.", "error"); return; }
+        runExport(`/projects/${id}/export/copy`, { destination: dest.value, per_chapter: perChapter }, "Copy export");
+      } })),
     exportMsg);
   const sideToggle = el("button", { type: "button", className: "btn side-toggle", textContent: "Chapters and settings", attrs: { "aria-expanded": "false" } });
   sideToggle.onclick = () => { const open = side.classList.toggle("open"); sideToggle.setAttribute("aria-expanded", String(open)); };
