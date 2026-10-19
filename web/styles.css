@@ -351,3 +351,39 @@ main { padding: 28px 24px 60px; }
 
 .lb-error { margin: 0; padding: 8px 20px; color: #ff8c76; }
 .lb-error:empty { display: none; }
+
+/* Inspect cached pixels and compare expressions without leaving the review. */
+.lb-stage { gap: 16px; }
+.lb-pane { flex: 1 1 0; height: 100%; min-width: 0; min-height: 0; margin: 0; display: flex; flex-direction: column; }
+.lb-pane[hidden] { display: none; }
+.lb-pane-label { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; color: #e4e4e4; font-size: 13px; }
+.lb-pane-label .btn { min-height: 44px; flex: none; color: #e4e4e4; border-color: #9b9b9b; }
+.lb-reference-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lb-stage:not(.comparing) .lb-pane-label { display: none; }
+.lb-viewport { flex: 1; min-height: 0; min-width: 0; overflow: auto; display: flex; align-items: center; justify-content: center; }
+.lb-viewport.zoomed { display: block; cursor: grab; overscroll-behavior: contain; }
+.lb-viewport.zoomed .lb-img { max-width: none; max-height: none; width: auto; height: auto; transform: none; animation: none; margin: auto; }
+.lb-viewport.panning { cursor: grabbing; user-select: none; }
+.lb-info { display: block; padding: 0 20px 4px; color: #b8b8b8; font-size: 12px; }
+.lb-burst { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding: 8px 20px; }
+.lb-burst:empty { display: none; }
+.lb-burst > span { flex: none; font-size: 13px; color: #b8b8b8; }
+.lb-burst .btn { flex: none; width: 112px; min-height: 44px; padding: 4px; display: grid; gap: 4px; }
+.lb-burst .btn img { width: 100%; height: 52px; object-fit: contain; background: #191919; }
+.lb-burst .btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.lb-burst [aria-pressed="true"] { border-color: var(--gilt); color: #e8bd62; }
+.lb-filename { flex: 1 1 220px; min-width: 0; font: 600 14px var(--mono); }
+.lb-filename summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; gap: 8px; }
+.lb-filename summary > span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lb-filename summary .ic { flex: none; width: 14px; height: 14px; }
+.lb-filename summary::after { content: ""; }
+.lb-filename[open] summary { color: #e8bd62; }
+.lb-filename > span { display: block; overflow-wrap: anywhere; padding-block: 4px; }
+@media (max-width: 600px) {
+  .lb-stage.comparing { flex-direction: column; gap: 4px; padding-top: 68px; }
+  .lb-stage.comparing .lb-pane { width: 100%; height: 0; }
+  .lb-pane-label { min-height: 44px; }
+  .lb-info { padding-inline: 12px; }
+  .lb-burst { padding-inline: 12px; }
+  .lb-filename { flex-basis: calc(100% - 64px); }
+}

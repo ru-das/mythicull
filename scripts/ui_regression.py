@@ -93,6 +93,17 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   autoAdvance=true; openPreview(0); key('x'); await wait(); assert(current===1,'Auto advance after successful save');
   openPreview(-1);
   document.querySelector('.count').click(); assert(cells.length===8 && document.activeElement.classList.contains('count'),'Group expansion accessible');
+  openPreview(0);await wait();zoomBtn.click();
+  assert(previewZoom && currentViewport.classList.contains('zoomed') && previewInfo.textContent.includes('not original resolution'),'Zoom honestly labels cached preview');
+  const zoomSelection=selected;currentViewport.focus();key('ArrowRight');
+  assert(selected===zoomSelection && (currentViewport.clientWidth>=bigImg.naturalWidth || currentViewport.scrollLeft>0),'Zoom arrows pan without changing photo');
+  compareBtn.click();assert(!referencePane.hidden && referencePhoto.id===photos[0].id,'Pin reference');
+  const alternative=burstStrip.querySelectorAll('button')[1];assert(alternative,'Burst alternative available');alternative.click();
+  assert(current===1 && referencePhoto.id==='0' && !referencePane.hidden && referenceImg.alt!==bigImg.alt,'Compare keeps reference while choosing burst alternative');
+  assert(caption.querySelector('.lb-filename summary').textContent===photos[current].filename,'Filename disclosure shows current photo');
+  const filenameSummary=caption.querySelector('.lb-filename summary');filenameSummary.focus();key('Enter');assert(current===1,'Filename keyboard activation does not close preview');filenameSummary.click();assert(caption.querySelector('.lb-filename').open,'Full filename expands');
+  clearReferenceBtn.click();assert(referencePane.hidden && document.activeElement===compareBtn,'Clear reference restores focus');
+  key('z',closeBtn);assert(!previewZoom,'Keyboard returns to fit');openPreview(-1);assert(!referencePhoto && !previewZoom,'Close resets inspection');
   const sliderSidebarToggle=document.querySelector('.side-toggle');if(getComputedStyle(sliderSidebarToggle).display!=='none' && sliderSidebarToggle.getAttribute('aria-expanded')!=='true')sliderSidebarToggle.click();
   button('Analysis settings').click();
   const helpButtons=[...document.querySelectorAll('.help-button')];
@@ -138,10 +149,11 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   location.hash='#/p/test';await wait();await wait();
   assert(photos[selected].id===resumeId && reviewChapterId==='chapter' && filter==='unreviewed' && view==='all' && !autoAdvance,'Project restores photo, chapter, filter, view and auto-next');
   button('All').click();button('Suggested').click();
-  await new Promise(r=>setTimeout(r,450));
   applyTheme(TEST_THEME,false);
   if(TEST_ZOOM) document.documentElement.style.zoom='2';
   assert(document.documentElement.scrollWidth<=innerWidth+1,'No horizontal overflow');
+  // Sample final colors rather than a compositor transition between radio states.
+  const contrastStyles=document.createElement('style');contrastStyles.textContent='* {transition:none !important}';document.head.append(contrastStyles);
   const luminance = rgb => rgb.slice(0,3).map(v=>{v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;}).reduce((n,v,i)=>n+v*[0.2126,0.7152,0.0722][i],0);
   const contrast = (a,b) => {const x=luminance(a),y=luminance(b);return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);};
   for(const node of [document.querySelector('.summary p'),document.querySelector('.fname'),document.querySelector('.seg-b:not(.on)')]) {
@@ -149,6 +161,7 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
     while(parent) {bg=getComputedStyle(parent).backgroundColor.match(/[\d.]+/g).map(Number);if(bg.length===3 || bg[3]===1) break;parent=parent.parentElement;}
     assert(contrast(fg,bg)>=4.5,'Text contrast: '+node.className+' '+node.textContent+' '+JSON.stringify({fg,bg,ratio:contrast(fg,bg)}));
   }
+  contrastStyles.remove();
   const toggleSidebar=document.querySelector('.side-toggle');if(getComputedStyle(toggleSidebar).display!=='none') toggleSidebar.click();
   const settingButton=button('Analysis settings');settingButton.click();await wait();
   assert(document.querySelector('.sidebar').scrollWidth<=document.querySelector('.sidebar').clientWidth+1,'Settings do not overflow');settingButton.click();if(toggleSidebar.getAttribute('aria-expanded')==='true')toggleSidebar.click();
@@ -176,7 +189,7 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   if(narrowSidebar) stickyToggle.click();
   window.scrollTo(0,0);
   if(TEST_SETTINGS) {const b=document.querySelector('.side-toggle');if(getComputedStyle(b).display!=='none') b.click();button('Analysis settings').click();await wait();document.querySelector('.help-button').focus();}
-  if(TEST_PREVIEW) {openPreview(0);await wait();document.body.dataset.geometry=JSON.stringify({overlay:overlay.getBoundingClientRect().toJSON(),footer:document.querySelector('.lb-footer').getBoundingClientRect().toJSON(),height:innerHeight,scrollY});assert(document.querySelector('.lb-footer').getBoundingClientRect().bottom<=innerHeight+1,'Footer stays in viewport');assert(bigImg.getBoundingClientRect().bottom<=document.querySelector('.lb-footer').getBoundingClientRect().top+1,'Image and footer do not overlap');}
+  if(TEST_PREVIEW) {openPreview(0);if(TEST_COMPARE){compareBtn.click();openPreview(1);}await wait();document.body.dataset.geometry=JSON.stringify({overlay:overlay.getBoundingClientRect().toJSON(),footer:document.querySelector('.lb-footer').getBoundingClientRect().toJSON(),height:innerHeight,scrollY});assert(document.querySelector('.lb-footer').getBoundingClientRect().bottom<=innerHeight+1,'Footer stays in viewport');assert(bigImg.getBoundingClientRect().bottom<=document.querySelector('.lb-footer').getBoundingClientRect().top+1,'Image and footer do not overlap');}
   document.body.dataset.checks='passed';
  } catch(e) {document.body.dataset.checks='failed: '+e.message;}
 })();
@@ -191,6 +204,7 @@ def main() -> None:
     parser.add_argument('--theme', choices=['dark', 'light'], default='dark')
     parser.add_argument('--preview', action='store_true')
     parser.add_argument('--settings', action='store_true')
+    parser.add_argument('--compare', action='store_true', help='Capture pinned-reference comparison in preview')
     parser.add_argument('--zoom', action='store_true', help='Simulate 200 percent with CSS zoom')
     parser.add_argument('--reduced', action='store_true')
     args = parser.parse_args()
@@ -203,11 +217,11 @@ def main() -> None:
     photo = 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
     js = (ROOT / 'web/app.js').read_text()
     for size in ['thumb', 'preview']:
-        js = js.replace('`/api/photos/${p.id}/' + size + '`', repr(photo))
+        js = re.sub(r'`/api/photos/\$\{[^}]+\}/' + size + '`', lambda _: repr(photo), js)
     css = (ROOT / 'web/styles.css').read_text().replace('url("/fonts/', f'url("file://{ROOT}/web/fonts/')
     html = (ROOT / 'web/index.html').read_text().replace('<link rel="stylesheet" href="/styles.css">', '<style>' + css + '</style>')
     html = html.replace('<link rel="preload"', '<link rel="alternate"')
-    config = f'const TEST_THEME={args.theme!r}, TEST_PREVIEW={str(args.preview).lower()}, TEST_ZOOM={str(args.zoom).lower()}, TEST_SETTINGS={str(args.settings).lower()};'
+    config = f'const TEST_THEME={args.theme!r}, TEST_PREVIEW={str(args.preview).lower()}, TEST_ZOOM={str(args.zoom).lower()}, TEST_SETTINGS={str(args.settings).lower()}, TEST_COMPARE={str(args.compare).lower()};'
     html = html.replace('<script type="module" src="/app.js"></script>', '<script>"use strict";\n' + config + MOCK + js + CHECKS + '</script>')
     output = Path(args.output).resolve()
     output.with_suffix('.html').write_text(html)

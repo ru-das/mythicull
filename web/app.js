@@ -318,7 +318,7 @@ document.addEventListener("keydown", e => {
   if (!modal) return;
   if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); modal.dismiss(); }
   if (e.key !== "Tab") return;
-  const items = [...modal.root.querySelectorAll('button:not(:disabled), input:not(:disabled), [href], [tabindex="0"]')]
+  const items = [...modal.root.querySelectorAll('button:not(:disabled), input:not(:disabled), summary, [href], [tabindex="0"]')]
     .filter(node => !node.hidden && node.getClientRects().length);
   if (!items.length) return;
   const next = (items.indexOf(document.activeElement) + (e.shiftKey ? -1 : 1) + items.length) % items.length;
@@ -700,10 +700,91 @@ let enterAnim = false; // stagger tiles in only on a fresh load, not on every re
 const overlay = el("div", { className: "overlay", attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Photo preview", "aria-hidden": "true" } });
 
 const bigImg = el("img", { className: "lb-img", alt: "" });
+const referenceImg = el("img", { className: "lb-img", alt: "" });
+const previewInfo = el("span", { className: "lb-info", textContent: "Cached preview · up to 1600 px · not original resolution", attrs: { role: "status" } });
+let previewZoom = false;
+let referencePhoto = null;
+function previewViewport(image, label) {
+  const viewport = el("div", { className: "lb-viewport", tabIndex: 0, attrs: { "aria-label": label } }, image);
+  let drag = null;
+  viewport.onpointerdown = e => {
+    if (!previewZoom || e.button !== 0 || e.pointerType === "touch") return;
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
+    viewport.setPointerCapture(e.pointerId);
+    viewport.classList.add("panning");
+    e.preventDefault();
+  };
+  viewport.onpointermove = e => {
+    if (!drag || drag.id !== e.pointerId) return;
+    viewport.scrollLeft = drag.left + drag.x - e.clientX;
+    viewport.scrollTop = drag.top + drag.y - e.clientY;
+  };
+  const endDrag = () => {
+    const pointer = drag?.id;
+    drag = null;
+    if (pointer !== undefined && viewport.hasPointerCapture(pointer)) viewport.releasePointerCapture(pointer);
+    viewport.classList.remove("panning");
+  };
+  viewport.onpointerup = viewport.onpointercancel = viewport.onlostpointercapture = endDrag;
+  viewport.onblur = endDrag;
+  window.addEventListener("blur", endDrag);
+  viewport.onkeydown = e => {
+    if (!previewZoom) return;
+    const delta = { ArrowLeft: [-80, 0], ArrowRight: [80, 0], ArrowUp: [0, -80], ArrowDown: [0, 80] }[e.key];
+    if (delta) { viewport.scrollBy(...delta); e.preventDefault(); e.stopPropagation(); }
+  };
+  image.draggable = false;
+  return viewport;
+}
+const currentViewport = previewViewport(bigImg, "Current photo. At preview pixels, use arrow keys or scroll to pan.");
+const referenceViewport = previewViewport(referenceImg, "Reference photo. At preview pixels, use arrow keys or scroll to pan.");
+const referenceName = el("span", { className: "lb-reference-name" });
+const clearReferenceBtn = el("button", { type: "button", className: "btn", textContent: "Clear reference", onclick: () => {
+  referencePhoto = null;
+  paintComparison();
+  compareBtn.focus();
+} });
+const referencePane = el("figure", { className: "lb-pane", hidden: true },
+  el("figcaption", { className: "lb-pane-label" }, referenceName, clearReferenceBtn), referenceViewport);
+const currentPane = el("figure", { className: "lb-pane" },
+  el("figcaption", { className: "lb-pane-label", textContent: "Current photo · ratings apply here" }), currentViewport);
 const caption = el("div", { className: "caption" });
 const previewError = el("p", { className: "lb-error", attrs: { role: "alert" } });
 const closeBtn = el("button", { type: "button", className: "lb-close", title: "Close preview (Esc)", attrs: { "aria-label": "Close preview" } }, icon("close"));
-const imageStage = el("div", { className: "lb-stage" }, bigImg);
+const imageStage = el("div", { className: "lb-stage" }, referencePane, currentPane);
+const zoomBtn = el("button", { type: "button", className: "btn", textContent: "Preview pixels", title: "Show the cached preview at one image pixel per CSS pixel (Z)", attrs: { "aria-pressed": "false" }, onclick: () => setPreviewZoom(!previewZoom) });
+const compareBtn = el("button", { type: "button", className: "btn", textContent: "Pin reference", title: "Keep this photo visible while comparing other frames", onclick: () => {
+  referencePhoto = photos[current];
+  referenceImg.src = `/api/photos/${referencePhoto.id}/preview`;
+  referenceImg.alt = referencePhoto.filename;
+  paintComparison();
+} });
+const burstStrip = el("div", { className: "lb-burst", attrs: { role: "group", "aria-label": "Similar photos" } });
+function paintComparison() {
+  referencePane.hidden = !referencePhoto;
+  imageStage.classList.toggle("comparing", !!referencePhoto);
+  referenceName.textContent = referencePhoto ? `Reference · ${referencePhoto.filename}` : "";
+  referenceName.title = referencePhoto?.filename || "";
+  compareBtn.textContent = referencePhoto ? "Replace reference" : "Pin reference";
+  compareBtn.disabled = referencePhoto?.id === photos[current]?.id;
+}
+function setPreviewZoom(zoom) {
+  previewZoom = zoom;
+  for (const viewport of [currentViewport, referenceViewport]) {
+    viewport.classList.toggle("zoomed", zoom);
+    viewport.scrollTop = viewport.scrollLeft = 0;
+  }
+  zoomBtn.textContent = zoom ? "Fit photo" : "Preview pixels";
+  zoomBtn.setAttribute("aria-pressed", String(zoom));
+  paintPreviewInfo();
+}
+function paintPreviewInfo() {
+  const size = bigImg.naturalWidth ? `${bigImg.naturalWidth} × ${bigImg.naturalHeight} px` : "up to 1600 px";
+  previewInfo.textContent = `Cached preview · ${size} · not original resolution${previewZoom ? " · Scroll, drag or focus image and use arrows to pan" : ""}`;
+}
+bigImg.onload = () => { paintPreviewInfo(); };
+bigImg.onerror = () => { previewError.textContent = "Preview unavailable. Try another photo or check the import summary."; };
+referenceImg.onerror = () => { previewError.textContent = "Reference preview unavailable. Clear the reference and choose another photo."; };
 const previousBtn = el("button", { type: "button", className: "btn", textContent: "Previous", onclick: () => openPreview(current - 1) });
 const nextBtn = el("button", { type: "button", className: "btn", textContent: "Next", onclick: () => openPreview(current + 1) });
 const decisionButtons = [["keep", "Keep"], ["reject", "Reject"], [null, "Clear decision"]].map(([status, label]) =>
@@ -716,10 +797,11 @@ const starButtons = Array.from({ length: 6 }, (_, stars) => el("button", {
 const previewUndo = el("button", { type: "button", className: "btn", textContent: "Undo", title: "Undo last rating (Ctrl/Cmd+Z)", disabled: true, onclick: undo });
 undoButtons.add(previewUndo);
 const actions = el("div", { className: "lb-actions" },
-  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Photo navigation" } }, previousBtn, nextBtn),
-  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Review decision" } }, ...decisionButtons, previewUndo),
+  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Preview inspection" } }, zoomBtn, compareBtn),
+  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Photo navigation and undo" } }, previousBtn, nextBtn, previewUndo),
+  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Review decision" } }, ...decisionButtons),
   el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Star rating" } }, el("span", { textContent: "Stars" }), ...starButtons));
-overlay.append(imageStage, el("div", { className: "lb-footer" }, caption, previewError, actions), closeBtn);
+overlay.append(imageStage, el("div", { className: "lb-footer" }, burstStrip, caption, previewInfo, previewError, actions), closeBtn);
 closeBtn.onclick = () => openPreview(-1);
 overlay.onclick = e => { if (e.target === overlay || e.target === imageStage) openPreview(-1); };
 document.body.append(overlay);
@@ -742,14 +824,28 @@ function paintActions(p, i) {
 }
 function paintCaption(p, i) {
   paintActions(p, i);
+  paintComparison();
   caption.replaceChildren(
     el("span", { className: "lb-no", textContent: `${i + 1} / ${photos.length}` }),
-    el("strong", { textContent: p.filename }),
+    el("details", { className: "lb-filename" }, el("summary", { title: "Expand full filename", attrs: { "aria-label": `Filename: ${p.filename}. Expand full filename.` } }, el("span", { textContent: p.filename }), icon("chevron")), el("span", { textContent: p.filename })),
     el("span", { className: "lb-time", textContent: p.capture_time || "" }),
     ...(p.time_source === "mtime" ? [el("span", { className: "lb-warn", textContent: "file time, not EXIF" })] : []),
     el("span", { className: "chip " + (p.status || ""), textContent: p.status === "keep" ? "Keep" : p.status === "reject" ? "Reject" : "Unreviewed" }),
     el("span", { textContent: `${p.stars} stars` }),
-    el("span", { className: "lb-hint", textContent: "← → move · P keep · X reject · 0–5 stars · Esc close" }));
+    el("span", { className: "lb-hint", textContent: "← → move · P keep · X reject · 0–5 stars · Z zoom · Ctrl/Cmd+Z undo · Esc close" }));
+  const burst = filter === "all" && !searchQ ? allPhotos.filter(q => q.group_id === p.group_id) : [];
+  burstStrip.replaceChildren();
+  if (burst.length > 1) {
+    burstStrip.append(el("span", { textContent: `${burst.length} similar photos` }));
+    for (const photo of burst) burstStrip.append(el("button", {
+      type: "button", className: "btn", title: photo.filename,
+      attrs: { "aria-pressed": String(photo.id === p.id), "aria-label": `View similar photo ${photo.filename}` }, onclick: () => {
+        expanded.add(photo.group_id);
+        renderGrid({ keepPreview: true, photoId: photo.id });
+        burstStrip.querySelector('[aria-pressed="true"]')?.focus();
+      },
+    }, el("img", { src: `/api/photos/${photo.id}/thumb`, alt: "", loading: "lazy" }), el("span", { textContent: photo.filename })));
+  }
 }
 
 function select(i) {
@@ -766,6 +862,9 @@ function openPreview(i) {
     overlay.classList.remove("open");
     overlay.setAttribute("aria-hidden", "true");
     if (wasOpen) endModal(overlay);
+    referencePhoto = null;
+    paintComparison();
+    setPreviewZoom(false);
     return;
   }
   const wasOpen = current >= 0;
@@ -776,6 +875,8 @@ function openPreview(i) {
   const p = photos[i];
   bigImg.src = `/api/photos/${p.id}/preview`;
   bigImg.alt = p.filename;
+  currentViewport.scrollTop = currentViewport.scrollLeft = 0;
+  paintPreviewInfo();
   if (wasOpen) {
     bigImg.classList.remove("swap");
     void bigImg.offsetWidth;
@@ -975,7 +1076,7 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (!photos.length || e.ctrlKey || e.metaKey || e.altKey) return;
-  if ((e.key === "Enter" || e.key === " ") && t.closest("button, [role=radio], [role=switch]")) return; // let the focused control act
+  if ((e.key === "Enter" || e.key === " ") && t.closest("button, summary, [role=radio], [role=switch]")) return; // let the focused control act
   const open = current >= 0;
   const move = (i) => (open ? openPreview(Math.min(Math.max(i, 0), photos.length - 1)) : (select(i), cells[selected]?.focus({ preventScroll: true })));
   const columns = open ? 1 : Math.max(1, getComputedStyle(gridEl).gridTemplateColumns.split(" ").length);
@@ -984,6 +1085,7 @@ document.addEventListener("keydown", (e) => {
   if (step !== undefined) move(selected + step);
   else if (e.key === "Enter" || e.key === " ") openPreview(open ? -1 : selected);
   else if (e.key === "Escape") openPreview(-1);
+  else if (key === "z" && open) setPreviewZoom(!previewZoom);
   else if (key === "p" || key === "x") {
     rate({ status: key === "p" ? "keep" : "reject" }, true);
   } else if (key === "u") rate({ status: null });

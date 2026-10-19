@@ -36,7 +36,7 @@ Environment variables:
 ## Usage
 1. Create a project: enter a name and use **Choose folder…** to select the photo folder. Import runs in the background.
 2. Click **Analyze photos**. Indexing can be cancelled and resumes where it stopped. Chapters and Suggested/Every photo views appear when it finishes.
-3. Cull. Suggested view shows one suggestion per group of similar photos; click the count badge to expand a group.
+3. Cull. Suggested view shows one suggestion per group of similar photos; click the count badge to expand a group. Review-state filters show every matching photo. Your last photo, chapter, filter, view and auto-next preference are remembered per project in this browser.
 4. The sun/moon button in the top bar switches between dark and light mode. Dark is the default and your choice is remembered in the browser.
 5. Use the **Export** panel: write XMP sidecars, or choose a destination folder and copy kept photos (optionally one folder per chapter).
 
@@ -44,10 +44,12 @@ Folder selection opens on the computer running MythiCull. Use the browser on tha
 
 Your photo folder is read-only. The only files MythiCull ever writes there are `.xmp` sidecars, and it will not overwrite one it did not create. Copy export never overwrites files and refuses a destination inside the photo folder.
 
+In the large preview, **Preview pixels** (or **Z**) shows the cached preview at one image pixel per CSS pixel. Scroll, drag with a mouse, or focus the image and use arrows to pan; **Fit photo** returns to the whole frame. The cache is at most 1600px on its long edge, so this does not show original-resolution RAW detail. **Pin reference** keeps one photo visible while you navigate or choose a similar frame from the thumbnail strip. Ratings always apply to the current photo. On phones, the reference and current photo stack vertically. Clear the reference or close the preview to leave comparison.
+
 ## Keyboard shortcuts
 | Key | Action |
 | --- | --- |
-| Arrow keys | Move selection (or photo, when the preview is open) |
+| Arrow keys | Move selection; Up/Down move by grid row. In preview, move between photos; when a zoomed image has focus, pan it. |
 | Enter / Space | Open or close the large preview |
 | Esc | Close preview, or clear search when in the search box |
 | P | Keep |
@@ -57,6 +59,7 @@ Your photo folder is read-only. The only files MythiCull ever writes there are `
 | `/` | Focus the search box |
 | Enter (in search box) | Run search |
 | Ctrl/Cmd+Z | Undo the last decision (lost on page reload) |
+| Z (in preview) | Toggle fit / cached-preview pixels |
 
 ## Limitations
 - Search scores are only good for ranking within one query; there is no relevance cut-off.
