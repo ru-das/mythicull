@@ -172,7 +172,7 @@ main { padding: 28px 24px 60px; }
 .workbar .hit { font-size: 14px; }
 .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 18px; }
 .side-toggle { display: none; }
-.sidebar { position: sticky; top: calc(var(--bar-h) + 14px); max-height: calc(100vh - var(--bar-h) - 28px); overflow-y: auto; background: var(--rail); border: 1px solid var(--line); border-radius: 4px; padding: 16px 14px; display: grid; gap: 14px; }
+.sidebar { position: sticky; top: calc(var(--bar-h) + 14px); z-index: 10; min-height: 0; max-height: calc(100dvh - var(--bar-h) - 28px); overflow-y: auto; background: var(--rail); border: 1px solid var(--line); border-radius: 4px; padding: 16px 14px; display: grid; gap: 14px; }
 .setting { display: grid; gap: 6px; }
 .setting-heading { position: relative; display: flex; align-items: center; gap: 4px; }
 .help-button { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 6px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: help; }
@@ -263,7 +263,9 @@ main { padding: 28px 24px 60px; }
 
 @media (max-width: 900px) {
   .home, .layout { grid-template-columns: 1fr; gap: 24px; }
-  .newform, .sidebar { position: static; max-height: none; }
+  .newform { position: static; max-height: none; }
+  .layout { display: block; }
+  .sidebar { top: 12px; max-height: calc(50dvh - 24px); margin-bottom: 12px; }
   .side-toggle { display: inline-flex; margin-bottom: 12px; }
   .theme-btn { order: 2; }
   .layout > .sidebar:not(.open) { display: none; }

@@ -99,3 +99,5 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **U11 Help focus outline.** Use a circular keyboard focus ring on help icons and avoid a mouse-focus outline.
 
 - [x] **U12 Auto-next label.** Change “Next after rating” to “Auto-Next after rating”.
+
+- [x] **U13 Sticky sidebar at every width.** Preserve desktop sticking and keep the expanded narrow-screen sidebar visible with independent scrolling and room for photos. Verify scrolling in Chromium.

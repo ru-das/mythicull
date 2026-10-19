@@ -145,6 +145,22 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   assert(!document.body.dataset.error,document.body.dataset.error);
   assert(!performance.getEntriesByType('resource').some(r=>/^https?:/.test(r.name)),'No external requests');
   window.scrollTo(0,0);
+  const stickySide=document.querySelector('.sidebar'), stickyToggle=document.querySelector('.side-toggle');
+  const narrowSidebar=getComputedStyle(stickyToggle).display!=='none';
+  if(narrowSidebar && !stickySide.classList.contains('open')) stickyToggle.click();
+  const stickyView=stickySide.closest('.view'), savedAnimation=stickyView.style.animation;
+  stickyView.style.animation='none';
+  const stickyGrid=document.querySelector('.grid'), savedMinHeight=stickyGrid.style.minHeight;
+  stickyGrid.style.minHeight='3000px';
+  const stickyTop=parseFloat(getComputedStyle(stickySide).top);
+  window.scrollTo(0,stickySide.getBoundingClientRect().top+scrollY+200);await wait();
+  assert(Math.abs(stickySide.getBoundingClientRect().top-stickyTop)<2,'Sidebar stays pinned while photos scroll: '+JSON.stringify({actual:stickySide.getBoundingClientRect().top,expected:stickyTop,scrollY,height:stickySide.offsetHeight,bar:topbar.offsetHeight,layout:stickySide.parentElement.getBoundingClientRect().toJSON()}));
+  assert(stickySide.getBoundingClientRect().bottom<=innerHeight,'Sticky sidebar fits viewport');
+  const priorSideScroll=stickySide.scrollTop;stickySide.scrollTop=stickySide.scrollHeight;
+  if(stickySide.scrollHeight>stickySide.clientHeight) assert(stickySide.scrollTop>priorSideScroll,'Sidebar scrolls independently');
+  stickySide.scrollTop=0;stickyGrid.style.minHeight=savedMinHeight;stickyView.style.animation=savedAnimation;
+  if(narrowSidebar) stickyToggle.click();
+  window.scrollTo(0,0);
   if(TEST_SETTINGS) {const b=document.querySelector('.side-toggle');if(getComputedStyle(b).display!=='none') b.click();button('Analysis settings').click();await wait();document.querySelector('.help-button').focus();}
   if(TEST_PREVIEW) {openPreview(0);await wait();document.body.dataset.geometry=JSON.stringify({overlay:overlay.getBoundingClientRect().toJSON(),footer:document.querySelector('.lb-footer').getBoundingClientRect().toJSON(),height:innerHeight,scrollY});assert(document.querySelector('.lb-footer').getBoundingClientRect().bottom<=innerHeight+1,'Footer stays in viewport');assert(bigImg.getBoundingClientRect().bottom<=document.querySelector('.lb-footer').getBoundingClientRect().top+1,'Image and footer do not overlap');}
   document.body.dataset.checks='passed';
