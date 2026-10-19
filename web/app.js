@@ -143,7 +143,7 @@ function stepper({ value, min = -Infinity, max = Infinity, step = 1, title = "",
 }
 
 function slider({ value, min = 0, max = 1, step = 0.05, title = "", onCommit }) {
-  let cur = value, last = value, timer = null;
+  let cur = value, last = value, timer = null, pointerId = null;
   const fill = el("i", { className: "slider-fill" });
   const thumb = el("i", { className: "slider-thumb" });
   const root = el("div", { className: "slider", title, attrs: { role: "slider", tabindex: "0", "aria-label": title, "aria-valuemin": min, "aria-valuemax": max, "aria-valuestep": step } },
@@ -161,10 +161,13 @@ function slider({ value, min = 0, max = 1, step = 0.05, title = "", onCommit }) 
     const r = root.getBoundingClientRect();
     set(min + ((e.clientX - r.left) / r.width) * (max - min));
   };
-  root.onpointerdown = (e) => { root.setPointerCapture(e.pointerId); root.classList.add("drag"); root.focus(); fromPointer(e); };
-  root.onpointermove = (e) => { if (root.classList.contains("drag")) fromPointer(e); };
+  root.onpointerdown = (e) => { if (pointerId !== null || e.button !== 0) return; pointerId = e.pointerId; root.setPointerCapture(e.pointerId); root.classList.add("drag"); root.focus(); fromPointer(e); };
+  root.onpointermove = (e) => { if (e.pointerId === pointerId && root.classList.contains("drag")) fromPointer(e); };
   const finish = () => {
     root.classList.remove("drag");
+    const captured = pointerId;
+    pointerId = null;
+    if (captured !== null && root.hasPointerCapture(captured)) root.releasePointerCapture(captured);
     commit();
   };
   root.onpointerup = root.onpointercancel = root.onlostpointercapture = finish;
@@ -182,6 +185,10 @@ function slider({ value, min = 0, max = 1, step = 0.05, title = "", onCommit }) 
   paint();
   return root;
 }
+
+window.addEventListener("blur", () => {
+  document.querySelectorAll(".slider.drag").forEach(node => node.dispatchEvent(new Event("blur")));
+});
 
 function progressBar(label = "Photo analysis") {
   const fill = el("i");
@@ -282,16 +289,14 @@ function beginModal(root, initial, dismiss) {
   syncModals();
   initial.focus({ preventScroll: true });
 }
-function endModal(root, restore = true) {
+function endModal(root) {
   const index = modals.findIndex(m => m.root === root);
   if (index < 0) return;
   const [modal] = modals.splice(index, 1);
   syncModals();
-  if (restore) {
-    const target = modal.opener?.isConnected && !modal.opener.closest("[inert]")
-      ? modal.opener : modals.at(-1)?.initial || cells[selected] || document.getElementById("home");
-    target?.focus({ preventScroll: true });
-  }
+  const target = modal.opener?.isConnected && !modal.opener.closest("[inert]")
+      ? modal.opener : modals.at(-1)?.initial || (cells[selected]?.isConnected ? cells[selected] : document.getElementById("home"));
+  target?.focus({ preventScroll: true });
 }
 document.addEventListener("keydown", e => {
   const modal = modals.at(-1);
@@ -380,12 +385,13 @@ async function showProject(id, jobId) {
   const grid = el("div", { className: "grid", attrs: { role: "grid", "aria-label": "Photos" } });
   const side = el("nav", { id: "chapter-sidebar", className: "sidebar", attrs: { "aria-label": "Chapters and settings" } });
   let chapterId = null;
-  const searchMsg = el("span", { className: "hit muted" });
+  let analysisOpen = false;
+  const searchMsg = el("span", { className: "hit muted", attrs: { role: "status" } });
   const searchBox = el("input", { type: "text", id: "search", placeholder: "Search: people dancing…", title: "Describe a photo, e.g. people dancing. Press / to focus search.", attrs: { "aria-label": "Search photos" } });
   const clearBtn = el("button", { type: "button", className: "clear", title: "Clear search", attrs: { "aria-label": "Clear search" } }, icon("close"));
   const searchWrap = el("div", { className: "search" }, icon("search"), searchBox, clearBtn);
   const syncClear = () => searchWrap.classList.toggle("has", !!searchBox.value);
-  const loadGrid = async () => {
+  const fetchGrid = async () => {
     const ch = chapterId ? `chapter=${chapterId}` : "";
     searchQ = searchQ.trim();
     searchMsg.textContent = "";
@@ -401,6 +407,11 @@ async function showProject(id, jobId) {
       await loadGrid();
       searchMsg.textContent = e.message;
     }
+  };
+  const loadGrid = async () => {
+    grid.setAttribute("aria-busy", "true");
+    if (!grid.children.length) grid.append(el("div", { className: "empty", attrs: { role: "row" } }, el("p", { textContent: "Loading photos…", attrs: { role: "gridcell" } })));
+    try { await fetchGrid(); } finally { grid.setAttribute("aria-busy", "false"); }
   };
   const clearSearch = () => { searchBox.value = ""; syncClear(); if (searchQ) { searchQ = ""; loadGrid().catch(showError); } };
   searchBox.oninput = syncClear;
@@ -508,14 +519,20 @@ async function showProject(id, jobId) {
       }
       return li;
     };
-    side.replaceChildren(
+    const focusedLabel = side.contains(document.activeElement) ? document.activeElement.getAttribute("aria-label") : null;
+    const settings = panel("Analysis settings",
       el("div", { className: "setting" }, el("span", { className: "label", textContent: "Chapter break (minutes)" }), gap, el("small", { className: "muted", textContent: "Chapters divide the shoot into sections based on time between photos." })),
       el("label", { className: "setting" }, el("span", { className: "label", textContent: "What to look for (optional)" }), Object.assign(vibe, { className: "input" }), el("small", { id: "preference-help", className: "muted", textContent: "Describe the moment you want in each group of similar photos. Leave blank to suggest the sharpest photo." })),
       el("div", { className: "setting" }, el("span", { className: "label", textContent: "Suggested photo priority" }), weight,
         el("div", { className: "slider-ends" }, el("span", { textContent: "Sharper photo" }), el("span", { textContent: "Closer match" })),
         el("small", { id: "priority-help", className: "muted", textContent: "Balance sharpness against your description. Applies when a description is entered; your Keep and Reject decisions stay unchanged." })),
-      ...cameraRows,
-      el("ul", { className: "chapters" }, entry(null, 0), ...chapters.map((c, i) => entry(c, i))));
+      ...cameraRows);
+    settings.wrap.classList.toggle("open", analysisOpen);
+    settings.head.setAttribute("aria-expanded", String(analysisOpen));
+    settings.head.addEventListener("click", () => { analysisOpen = settings.head.getAttribute("aria-expanded") === "true"; });
+    side.replaceChildren(el("h3", { textContent: "Chapters" }),
+      el("ul", { className: "chapters" }, entry(null, 0), ...chapters.map((c, i) => entry(c, i))), settings.head, settings.wrap);
+    if (focusedLabel) [...side.querySelectorAll("[aria-label]")].find(node => node.getAttribute("aria-label") === focusedLabel)?.focus({ preventScroll: true });
   };
   const render = async () => {
     const p = await api(`/projects/${id}`);
@@ -572,7 +589,7 @@ async function showProject(id, jobId) {
   const viewSeg = seg("Similar-photo view", [["best", "Suggested", "Show one suggested photo per similar-photo group; this does not mark photos as kept"], ["all", "Every photo", "Show every photo, including similar shots"]], view, (v) => { view = v; renderGrid(); }, true);
   const advance = toggle("Next after rating", autoAdvance, (on) => { autoAdvance = on; }, "Move to the next photo after marking Keep (P) or Reject (X)");
   barSlot.replaceChildren(searchWrap, filterSeg, viewSeg, advance);
-  const exportMsg = el("div");
+  const exportMsg = el("div", { attrs: { role: "status" } });
   const runExport = async (path, body, label) => {
     exportMsg.replaceChildren(el("span", { className: "muted", textContent: `${label}…` }));
     try {
@@ -645,6 +662,7 @@ const overlay = el("div", { className: "overlay", attrs: { role: "dialog", "aria
 
 const bigImg = el("img", { className: "lb-img", alt: "" });
 const caption = el("div", { className: "caption" });
+const previewError = el("p", { className: "lb-error", attrs: { role: "alert" } });
 const closeBtn = el("button", { type: "button", className: "lb-close", title: "Close preview (Esc)", attrs: { "aria-label": "Close preview" } }, icon("close"));
 const imageStage = el("div", { className: "lb-stage" }, bigImg);
 const previousBtn = el("button", { type: "button", className: "btn", textContent: "Previous", onclick: () => openPreview(current - 1) });
@@ -660,7 +678,7 @@ const actions = el("div", { className: "lb-actions" },
   el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Photo navigation" } }, previousBtn, nextBtn),
   el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Review decision" } }, ...decisionButtons),
   el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Star rating" } }, el("span", { textContent: "Stars" }), ...starButtons));
-overlay.append(imageStage, el("div", { className: "lb-footer" }, caption, actions), closeBtn);
+overlay.append(imageStage, el("div", { className: "lb-footer" }, caption, previewError, actions), closeBtn);
 closeBtn.onclick = () => openPreview(-1);
 overlay.onclick = e => { if (e.target === overlay || e.target === imageStage) openPreview(-1); };
 document.body.append(overlay);
@@ -670,12 +688,14 @@ const starsEl = (n) => el("span", { className: "stars", title: n ? `${n} star${n
 function paintActions(p, i) {
   previousBtn.disabled = i === 0;
   nextBtn.disabled = i === photos.length - 1;
+  if (document.activeElement === previousBtn && previousBtn.disabled) (nextBtn.disabled ? closeBtn : nextBtn).focus();
+  if (document.activeElement === nextBtn && nextBtn.disabled) (previousBtn.disabled ? closeBtn : previousBtn).focus();
   decisionButtons.forEach((b, k) => {
-    b.disabled = decisionBusy;
+    b.setAttribute("aria-disabled", String(decisionBusy));
     b.setAttribute("aria-pressed", String(p.status === ["keep", "reject", null][k]));
   });
   starButtons.forEach((b, k) => {
-    b.disabled = decisionBusy;
+    b.setAttribute("aria-disabled", String(decisionBusy));
     b.setAttribute("aria-pressed", String(p.stars === k));
   });
 }
@@ -709,6 +729,7 @@ function openPreview(i) {
   const wasOpen = current >= 0;
 
   current = i;
+  previewError.textContent = "";
   select(i);
   const p = photos[i];
   bigImg.src = `/api/photos/${p.id}/preview`;
@@ -752,6 +773,7 @@ function paintCell(i) {
 async function save(p, next) {
   const old = { status: p.status, stars: p.stars };
   const paint = () => { const i = photos.indexOf(p); if (i >= 0) paintCell(i); };
+  previewError.textContent = "";
   Object.assign(p, next); // optimistic; same object lives in allPhotos
   paint();
   try {
@@ -761,7 +783,9 @@ async function save(p, next) {
   } catch (e) {
     Object.assign(p, old);
     paint();
-    toast(`Could not save decision: ${e.message}`, "error");
+    const message = `Could not save decision: ${e.message}`;
+    if (current >= 0 && photos[current] === p) previewError.textContent = message;
+    toast(message, "error");
     return null;
   }
 }
@@ -788,7 +812,7 @@ async function undo() {
   decisionBusy = true;
   const result = await save(allPhotos.find((q) => q.id === last.p.id) || last.p, last.old);
   decisionBusy = false;
-  if (!result) undoStack.push(last);
+  if (!result && allPhotos.some(p => p.id === last.p.id)) undoStack.push(last);
   if (current >= 0) paintActions(photos[current], current);
 }
 
@@ -820,6 +844,7 @@ function groupedPhotos() {
 }
 
 function renderGrid() {
+  const restoreGridFocus = gridEl.contains(document.activeElement) || current >= 0;
   photos = visiblePhotos();
   openPreview(-1);
   const sizes = new Map();
@@ -838,6 +863,7 @@ function renderGrid() {
       frame.append(el("button", {
         type: "button",
         className: "count",
+        attrs: { "aria-expanded": String(open), "aria-label": open ? "Show suggested photo only" : `Show all ${n} similar photos` },
         title: open ? "Show suggested photo only" : `Show all ${n} similar photos`,
         textContent: String(n),
         onclick: (ev) => {
@@ -854,9 +880,18 @@ function renderGrid() {
     const row = el("div", { attrs: { role: "row" }, style: "display:contents" }, cell);
     return row;
   }));
+  if (!photos.length) {
+    const message = filter !== "all" && allPhotos.length
+      ? `No ${filter === "keep" ? "kept" : filter === "reject" ? "rejected" : "unreviewed"} photos in this view. Choose All to see the other photos.`
+      : searchQ ? "No search results. Try another description, or analyze photos first."
+      : "No photos imported yet. Check the import summary for skipped files.";
+    gridEl.append(el("div", { className: "empty", attrs: { role: "row" } },
+      el("p", { textContent: message, attrs: { role: "gridcell" } })));
+  }
   cells = [...gridEl.querySelectorAll(".cell")];
   photos.forEach((_, i) => paintCell(i));
   select(selected);
+  if (restoreGridFocus) (cells[selected] || document.getElementById("home")).focus({ preventScroll: true });
 }
 
 function showGrid(grid, list) {
@@ -903,7 +938,9 @@ function showError(e) {
 }
 
 function route() {
+  const wasPreviewOpen = current >= 0;
   openPreview(-1);
+  if (wasPreviewOpen && !modals.length) document.getElementById("home").focus({ preventScroll: true });
   clearTimeout(pollTimer);
   clearTimeout(indexTimer);
   photos = [];
@@ -949,10 +986,12 @@ async function promptModel() {
   const close = () => { clearTimeout(timer); endModal(backdrop); backdrop.remove(); };
   later.onclick = close;
   const track = async (id) => {
+    if (!backdrop.isConnected) return;
     start.disabled = true;
     progress.root.hidden = false;
     later.textContent = "Continue browsing";
     const j = await api(`/jobs/${id}`);
+    if (!backdrop.isConnected) return;
     const running = ["queued", "running"].includes(j.status);
     progress.set(j.done, j.total, running);
     label.textContent = downloadLabel(j);
@@ -974,6 +1013,7 @@ async function promptModel() {
     start.disabled = true;
     error.textContent = "";
     label.textContent = "Checking download size with Hugging Face…";
+    later.focus();
     try { await track((await api("/model/download", { method: "POST" })).job_id); } catch (e) { failed(e); }
   };
   document.body.append(backdrop);
