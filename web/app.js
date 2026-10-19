@@ -69,6 +69,21 @@ function toast(message, kind = "info") {
 
 /* ---------- custom controls ---------- */
 
+function settingHeading(text, id, description) {
+  const tip = el("span", { id, className: "help-tip", textContent: description, attrs: { role: "tooltip" } });
+  const help = el("button", { type: "button", className: "help-button", attrs: { "aria-label": `Help: ${text}`, "aria-describedby": id } },
+    el("span", { className: "ic", attrs: { "aria-hidden": "true" }, innerHTML: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 1.5-2.5 3.5M12 16.5v.1"/></svg>' }));
+  const heading = el("div", { className: "setting-heading" }, el("span", { className: "label", textContent: text }), help, tip);
+  help.onkeydown = (event) => {
+    if (event.key === "Escape") {
+      heading.classList.add("help-dismissed");
+      event.stopPropagation();
+    }
+  };
+  help.onfocus = help.onmouseenter = () => heading.classList.remove("help-dismissed");
+  return heading;
+}
+
 function seg(label, options, value, onChange, inBar = false) {
   let cur = value;
   const ind = el("span", { className: "seg-ind" });
@@ -521,11 +536,10 @@ async function showProject(id, jobId) {
     };
     const focusedLabel = side.contains(document.activeElement) ? document.activeElement.getAttribute("aria-label") : null;
     const settings = panel("Analysis settings",
-      el("div", { className: "setting" }, el("span", { className: "label", textContent: "Chapter break (minutes)" }), gap, el("small", { className: "muted", textContent: "Chapters divide the shoot into sections based on time between photos." })),
-      el("label", { className: "setting" }, el("span", { className: "label", textContent: "What to look for (optional)" }), Object.assign(vibe, { className: "input" }), el("small", { id: "preference-help", className: "muted", textContent: "Describe the moment you want in each group of similar photos. Leave blank to suggest the sharpest photo." })),
-      el("div", { className: "setting" }, el("span", { className: "label", textContent: "Suggested photo priority" }), weight,
-        el("div", { className: "slider-ends" }, el("span", { textContent: "Sharper photo" }), el("span", { textContent: "Closer match" })),
-        el("small", { id: "priority-help", className: "muted", textContent: "Balance sharpness against your description. Applies when a description is entered; your Keep and Reject decisions stay unchanged." })),
+      el("div", { className: "setting" }, settingHeading("Chapter break (minutes)", "chapter-help", "A chapter is a section of your shoot. Start a new one when the gap between photos is longer than this many minutes."), gap),
+      el("div", { className: "setting" }, settingHeading("What to look for (optional)", "preference-help", "Tell us what you want to see, like people laughing. We use this to suggest a photo from each set of similar shots. Leave it blank to choose the sharpest one."), Object.assign(vibe, { className: "input" })),
+      el("div", { className: "setting" }, settingHeading("Suggested photo priority", "priority-help", "Move left for sharper photos, or right for photos that better match your description. This only works when you add a description. Your Keep and Reject choices stay the same."), weight,
+        el("div", { className: "slider-ends" }, el("span", { textContent: "Sharper photo" }), el("span", { textContent: "Closer match" }))),
       ...cameraRows);
     settings.wrap.classList.toggle("open", analysisOpen);
     settings.head.setAttribute("aria-expanded", String(analysisOpen));

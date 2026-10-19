@@ -92,6 +92,16 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   document.querySelector('.count').click(); assert(cells.length===8 && document.activeElement.classList.contains('count'),'Group expansion accessible');
   const sliderSidebarToggle=document.querySelector('.side-toggle');if(getComputedStyle(sliderSidebarToggle).display!=='none' && sliderSidebarToggle.getAttribute('aria-expanded')!=='true')sliderSidebarToggle.click();
   button('Analysis settings').click();
+  const helpButtons=[...document.querySelectorAll('.help-button')];
+  assert(helpButtons.length===3,'Three setting help buttons');
+  for(const help of helpButtons) {
+    const tip=document.getElementById(help.getAttribute('aria-describedby'));
+    assert(getComputedStyle(tip).display==='none','Help hidden initially');
+    help.focus(); assert(getComputedStyle(tip).display==='block','Focus shows help');
+    assert(tip.getBoundingClientRect().right<=document.querySelector('.sidebar').getBoundingClientRect().right,'Help fits sidebar');
+    key('Escape',help); assert(getComputedStyle(tip).display==='none','Escape dismisses help');
+    help.blur();
+  }
   const commits=[]; const testSlider=slider({value:0.5,onCommit:v=>commits.push(v)});document.querySelector('.sidebar').append(testSlider);testSlider.focus();
   // Synthetic events cannot claim native pointer capture; stub only that browser boundary.
   let releases=0;testSlider.setPointerCapture=()=>{};testSlider.hasPointerCapture=()=>true;testSlider.releasePointerCapture=()=>releases++;
@@ -135,7 +145,7 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   assert(!document.body.dataset.error,document.body.dataset.error);
   assert(!performance.getEntriesByType('resource').some(r=>/^https?:/.test(r.name)),'No external requests');
   window.scrollTo(0,0);
-  if(TEST_SETTINGS) {const b=document.querySelector('.side-toggle');if(getComputedStyle(b).display!=='none') b.click();button('Analysis settings').click();await wait();}
+  if(TEST_SETTINGS) {const b=document.querySelector('.side-toggle');if(getComputedStyle(b).display!=='none') b.click();button('Analysis settings').click();await wait();document.querySelector('.help-button').focus();}
   if(TEST_PREVIEW) {openPreview(0);await wait();document.body.dataset.geometry=JSON.stringify({overlay:overlay.getBoundingClientRect().toJSON(),footer:document.querySelector('.lb-footer').getBoundingClientRect().toJSON(),height:innerHeight,scrollY});assert(document.querySelector('.lb-footer').getBoundingClientRect().bottom<=innerHeight+1,'Footer stays in viewport');assert(bigImg.getBoundingClientRect().bottom<=document.querySelector('.lb-footer').getBoundingClientRect().top+1,'Image and footer do not overlap');}
   document.body.dataset.checks='passed';
  } catch(e) {document.body.dataset.checks='failed: '+e.message;}
