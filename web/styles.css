@@ -175,7 +175,9 @@ main { padding: 28px 24px 60px; }
 .sidebar { position: sticky; top: calc(var(--bar-h) + 14px); max-height: calc(100vh - var(--bar-h) - 28px); overflow-y: auto; background: var(--rail); border: 1px solid var(--line); border-radius: 4px; padding: 16px 14px; display: grid; gap: 14px; }
 .setting { display: grid; gap: 6px; }
 .setting-heading { position: relative; display: flex; align-items: center; gap: 4px; }
-.help-button { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 6px; border: 0; background: transparent; color: var(--muted); cursor: help; }
+.help-button { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 6px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: help; }
+.help-button:focus { outline: none; }
+.help-button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .help-button:hover, .help-button:focus-visible { color: var(--ink); }
 .help-tip { display: none; position: absolute; z-index: 5; top: 100%; left: 0; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--ink); font: 400 14px/1.5 var(--ui); box-shadow: 0 4px 12px var(--shadow); }
 .setting-heading:not(.help-dismissed):has(.help-button:hover, .help-button:focus) .help-tip,

@@ -95,3 +95,5 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **U9 Navigation, responsive layout and visual polish.** Chapters first, collapsed analysis settings, touch targets, neutral surrounds and accessible empty states; browser regression and full-flow checks.
 
 - [x] **U10 Setting help tips.** Move the three setting descriptions beside their headings into circled-question help tips, simplify the wording, and support hover, keyboard and touch.
+
+- [x] **U11 Help focus outline.** Use a circular keyboard focus ring on help icons and avoid a mouse-focus outline.
