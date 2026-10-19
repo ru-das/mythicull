@@ -65,6 +65,9 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   assert(document.querySelector('.sidebar').firstElementChild.textContent==='Chapters','Chapters first');
   assert(button('Analysis settings').getAttribute('aria-expanded')==='false','Settings collapsed');
   assert(cells.filter(c=>c.tabIndex===0).length===1,'One photo tab stop');
+  const columns=Math.max(1,getComputedStyle(gridEl).gridTemplateColumns.split(' ').length);
+  cells[0].focus();key('ArrowDown');assert(selected===Math.min(columns,photos.length-1),'Down moves one rendered row');
+  key('ArrowUp');assert(selected===0,'Up returns one rendered row');
   cells[0].focus(); key('ArrowRight'); assert(document.activeElement===cells[1] && selected===1,'Arrow selection moves focus');
   key('Enter'); assert(current===1 && document.activeElement===closeBtn,'Keyboard opens preview');
   assert(app.inert && topbar.inert,'Preview inert background');
@@ -120,11 +123,22 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   await button('Analyze photos').onclick();assert(calls.some(c=>c.url.endsWith('/index')),'Analysis runs');
   button('Export').click();await button('Save ratings to XMP').onclick();await wait();assert(app.textContent.includes('7 written, 1 skipped') && app.textContent.includes('foreign.xmp'),'Export summary and skips');
   await document.querySelector('[aria-label="Choose copy photos to"]').onclick();button('Copy kept photos').click();await wait();assert(calls.some(c=>c.body?.destination==='/synthetic/export'),'Copy export');
+  fixture[1].status='keep';fixture[2].status='keep';expanded.clear();filter='keep';view='best';showGrid(gridEl,fixture.map(p=>({...p})));
+  assert(photos.length===2 && photos.some(p=>p.id==='1'),'Kept filter exposes non-suggested burst member');
+  assert(!document.querySelector('.count'),'Filtered decisions never collapse into groups');
+  openPreview(0);await rate({status:'reject'},true);
+  assert(photos.length===1 && photos[0].id==='2' && current===0,'Filtered rating removes photo without skipping next or closing preview');
+  assert(!previewUndo.disabled,'Visible undo enabled');await undo();
+  assert(photos.length===2 && photos.some(p=>p.id==='1') && current>=0,'Undo restores filtered keeper and keeps preview');openPreview(-1);
   filter='keep';allPhotos.forEach(p=>p.status=null);renderGrid();assert(gridEl.textContent.includes('No kept photos'),'Accessible filtered empty state');
   allPhotos=[];renderGrid();assert(gridEl.textContent.includes('No photos imported'),'Accessible import empty state');
   filter='all';allPhotos=fixture.map(p=>({...p}));renderGrid();
-  cells[0].focus();openPreview(0);location.hash='#/';await wait();assert(current===-1 && !app.inert && document.body.style.overflow!=='hidden','Route closes preview');
+  filter='unreviewed';view='all';autoAdvance=false;reviewChapterId='chapter';renderGrid();select(1);const resumeId=photos[selected].id;
+  cells[selected].focus();openPreview(selected);location.hash='#/';await wait();assert(current===-1 && !app.inert && document.body.style.overflow!=='hidden','Route closes preview');
   location.hash='#/p/test';await wait();await wait();
+  assert(photos[selected].id===resumeId && reviewChapterId==='chapter' && filter==='unreviewed' && view==='all' && !autoAdvance,'Project restores photo, chapter, filter, view and auto-next');
+  button('All').click();button('Suggested').click();
+  await new Promise(r=>setTimeout(r,450));
   applyTheme(TEST_THEME,false);
   if(TEST_ZOOM) document.documentElement.style.zoom='2';
   assert(document.documentElement.scrollWidth<=innerWidth+1,'No horizontal overflow');
@@ -133,7 +147,7 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   for(const node of [document.querySelector('.summary p'),document.querySelector('.fname'),document.querySelector('.seg-b:not(.on)')]) {
     const fg=getComputedStyle(node).color.match(/[\d.]+/g).map(Number);let parent=node,bg;
     while(parent) {bg=getComputedStyle(parent).backgroundColor.match(/[\d.]+/g).map(Number);if(bg.length===3 || bg[3]===1) break;parent=parent.parentElement;}
-    assert(contrast(fg,bg)>=4.5,'Text contrast: '+node.className);
+    assert(contrast(fg,bg)>=4.5,'Text contrast: '+node.className+' '+node.textContent+' '+JSON.stringify({fg,bg,ratio:contrast(fg,bg)}));
   }
   const toggleSidebar=document.querySelector('.side-toggle');if(getComputedStyle(toggleSidebar).display!=='none') toggleSidebar.click();
   const settingButton=button('Analysis settings');settingButton.click();await wait();

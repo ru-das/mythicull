@@ -101,3 +101,7 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **U12 Auto-next label.** Change “Next after rating” to “Auto-Next after rating”.
 
 - [x] **U13 Sticky sidebar at every width.** Preserve desktop sticking and keep the expanded narrow-screen sidebar visible with independent scrolling and room for photos. Verify scrolling in Chromium.
+
+- [x] **U14 Review correctness and continuity.** Keep every matching decision visible in review filters, update filtered results after rating/undo, spatial grid arrows, visible undo, chapter completion, and per-project resume position/view.
+- [ ] **U15 Preview inspection and comparison.** Cached-preview zoom/pan with honest resolution labeling, a pinned reference and burst alternatives, keyboard/touch controls, and bounded filenames.
+- [ ] **U16 Workspace and export polish.** Compact mobile controls/import details, readable rejected photos, clear suggestion meaning, and export eligibility/rating explanations without changing export rules.

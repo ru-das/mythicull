@@ -393,13 +393,20 @@ let pollTimer = null;
 let indexTimer = null;
 
 async function showProject(id, jobId) {
+  activeProjectId = id;
+  let resume = {};
+  try { resume = JSON.parse(localStorage.getItem(`mythicull-review-${id}`)) || {}; } catch (e) { /* storage is optional */ }
+  reviewChapterId = typeof resume.chapterId === "string" ? resume.chapterId : null;
+  filter = ["all", "unreviewed", "keep", "reject"].includes(resume.filter) ? resume.filter : "all";
+  view = ["best", "all"].includes(resume.view) ? resume.view : "best";
+  autoAdvance = typeof resume.autoAdvance === "boolean" ? resume.autoAdvance : true;
+  resumePhotoId = typeof resume.photoId === "string" ? resume.photoId : null;
   const head = el("h2", { textContent: "Loading…" });
   const status = el("div");
   const page = el("div", { className: "view" }, el("div", { className: "proj-head" }, head, status));
   app.replaceChildren(page);
   const grid = el("div", { className: "grid", attrs: { role: "grid", "aria-label": "Photos" } });
   const side = el("nav", { id: "chapter-sidebar", className: "sidebar", attrs: { "aria-label": "Chapters and settings" } });
-  let chapterId = null;
   let analysisOpen = false;
   const searchMsg = el("span", { className: "hit muted", attrs: { role: "status" } });
   const searchBox = el("input", { type: "text", id: "search", placeholder: "Search: people dancing…", title: "Describe a photo, e.g. people dancing. Press / to focus search.", attrs: { "aria-label": "Search photos" } });
@@ -407,7 +414,7 @@ async function showProject(id, jobId) {
   const searchWrap = el("div", { className: "search" }, icon("search"), searchBox, clearBtn);
   const syncClear = () => searchWrap.classList.toggle("has", !!searchBox.value);
   const fetchGrid = async () => {
-    const ch = chapterId ? `chapter=${chapterId}` : "";
+    const ch = reviewChapterId ? `chapter=${encodeURIComponent(reviewChapterId)}` : "";
     searchQ = searchQ.trim();
     searchMsg.textContent = "";
     if (!searchQ) return showGrid(grid, await api(`/projects/${id}/photos` + (ch ? `?${ch}` : "")));
@@ -450,7 +457,7 @@ async function showProject(id, jobId) {
     const all = total("photo_count"), kept = total("kept_count"), rejected = total("rejected_count");
     roll(sAll.n, all); roll(sKept.n, kept); roll(sRej.n, rejected); roll(sNew.n, all - kept - rejected);
     counters.setAttribute("aria-label", `${all} photos, ${kept} kept, ${rejected} rejected, ${all - kept - rejected} unreviewed`);
-    if (chapterId && !chapters.some((c) => c.id === chapterId)) chapterId = null;
+    if (reviewChapterId && !chapters.some((c) => c.id === reviewChapterId)) reviewChapterId = null;
     const gap = stepper({ value: p.chapter_gap_minutes, min: 1, title: "Start a new chapter after this many minutes between photos", onCommit: async (n) => {
       try {
         const np = await api(`/projects/${id}`, jsonBody("PATCH", { chapter_gap_minutes: n }));
@@ -489,16 +496,17 @@ async function showProject(id, jobId) {
         } })))];
     const entry = (c, i) => {
       const name = c ? c.title : "All photos";
-      const li = el("li", { className: (c ? c.id : null) === chapterId ? "active" : "" });
+      const li = el("li", { className: (c ? c.id : null) === reviewChapterId ? "active" : "" });
       const titleEl = el("span", { className: "ch-title", textContent: name });
       li.append(el("button", { type: "button", className: "ch-main", attrs: { "aria-current": li.className ? "true" : "false" }, onclick: async () => {
-        chapterId = c ? c.id : null;
+        reviewChapterId = c ? c.id : null;
         await loadChapters(p);
         await loadGrid();
       } }, el("span", { className: "ch-no", textContent: c ? String(i + 1).padStart(2, "0") + "A" : "ALL" }), titleEl,
       el("span", { className: "ch-n", textContent: c ? String(c.photo_count) : String(all) })));
       if (c) {
-        const meta = el("div", { className: "ch-meta" }, el("span", { textContent: `${c.photo_count} photos, ${c.kept_count} kept` }));
+        const remaining = c.photo_count - c.kept_count - c.rejected_count;
+        const meta = el("div", { className: "ch-meta" }, el("span", { textContent: `${c.kept_count} kept · ${remaining ? `${remaining} unreviewed` : "Review complete"}` }));
         if (c.suggested_title && !c.user_title) {
           meta.append(el("button", { type: "button", className: "btn text", textContent: `Use "${c.suggested_title}"`, title: "Suggested from the photos; ignore it to keep the current name", onclick: async () => {
             await api(`/chapters/${c.id}`, jsonBody("PATCH", { user_title: c.suggested_title }));
@@ -601,7 +609,9 @@ async function showProject(id, jobId) {
   indexBox.append(indexBtn, indexMsg);
   const filterSeg = seg("Show photos by review state", [["all", "All"], ["unreviewed", "Unreviewed"], ["keep", "Kept"], ["reject", "Rejected"]], filter, (v) => { filter = v; renderGrid(); }, true);
   const viewSeg = seg("Similar-photo view", [["best", "Suggested", "Show one suggested photo per similar-photo group; this does not mark photos as kept"], ["all", "Every photo", "Show every photo, including similar shots"]], view, (v) => { view = v; renderGrid(); }, true);
-  const advance = toggle("Auto-Next after rating", autoAdvance, (on) => { autoAdvance = on; }, "Move to the next photo after marking Keep (P) or Reject (X)");
+  const advance = toggle("Auto-Next after rating", autoAdvance, (on) => { autoAdvance = on; saveReviewState(); }, "Move to the next photo after marking Keep (P) or Reject (X)");
+  const undoBtn = el("button", { type: "button", className: "btn", textContent: "Undo", title: "Undo last rating (Ctrl/Cmd+Z)", onclick: undo, disabled: true });
+  undoButtons.add(undoBtn);
   barSlot.replaceChildren(searchWrap, filterSeg, viewSeg, advance);
   const exportMsg = el("div", { attrs: { role: "status" } });
   const runExport = async (path, body, label) => {
@@ -639,7 +649,7 @@ async function showProject(id, jobId) {
     exportMsg);
   const sideToggle = el("button", { type: "button", className: "btn side-toggle", textContent: "Chapters and settings", attrs: { "aria-controls": "chapter-sidebar", "aria-expanded": "false" } });
   sideToggle.onclick = () => { const open = side.classList.toggle("open"); sideToggle.setAttribute("aria-expanded", String(open)); };
-  page.append(el("div", { className: "workbar" }, indexBox, counters, searchMsg, el("span", { className: "push" }, exp.head)), exp.wrap, sideToggle, el("div", { className: "layout" }, side, grid));
+  page.append(el("div", { className: "workbar" }, indexBox, counters, searchMsg, undoBtn, el("span", { className: "push" }, exp.head)), exp.wrap, sideToggle, el("div", { className: "layout" }, side, grid));
   if (!jobId) return render();
   const bar = progressBar("Photo import");
   const label = el("p", { className: "muted mono" });
@@ -669,7 +679,22 @@ let autoAdvance = true;
 let filter = "all";
 let searchQ = ""; // active search: grid shows ranked hits, ungrouped
 let refreshCounts = () => {};
+let activeProjectId = null;
+let reviewChapterId = null;
+let resumePhotoId = null;
 const undoStack = [];
+const undoButtons = new Set();
+function syncUndo() {
+  for (const button of undoButtons) button.disabled = decisionBusy || !undoStack.length;
+}
+function saveReviewState() {
+  if (!activeProjectId) return;
+  try {
+    localStorage.setItem(`mythicull-review-${activeProjectId}`, JSON.stringify({
+      chapterId: reviewChapterId, photoId: photos[selected]?.id || resumePhotoId, filter, view, autoAdvance,
+    }));
+  } catch (e) { /* private mode/full storage: review still works */ }
+}
 let cells = [];
 let enterAnim = false; // stagger tiles in only on a fresh load, not on every re-render
 const overlay = el("div", { className: "overlay", attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Photo preview", "aria-hidden": "true" } });
@@ -688,9 +713,11 @@ const starButtons = Array.from({ length: 6 }, (_, stars) => el("button", {
   attrs: { "aria-label": stars ? `${stars} star${stars === 1 ? "" : "s"}` : "Clear stars", "aria-pressed": "false" },
   onclick: () => rate({ stars }),
 }));
+const previewUndo = el("button", { type: "button", className: "btn", textContent: "Undo", title: "Undo last rating (Ctrl/Cmd+Z)", disabled: true, onclick: undo });
+undoButtons.add(previewUndo);
 const actions = el("div", { className: "lb-actions" },
   el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Photo navigation" } }, previousBtn, nextBtn),
-  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Review decision" } }, ...decisionButtons),
+  el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Review decision" } }, ...decisionButtons, previewUndo),
   el("div", { className: "lb-group", attrs: { role: "group", "aria-label": "Star rating" } }, el("span", { textContent: "Stars" }), ...starButtons));
 overlay.append(imageStage, el("div", { className: "lb-footer" }, caption, previewError, actions), closeBtn);
 closeBtn.onclick = () => openPreview(-1);
@@ -729,6 +756,7 @@ function select(i) {
   selected = Math.min(Math.max(i, 0), photos.length - 1);
   cells.forEach((c, k) => { c.classList.toggle("sel", k === selected); c.setAttribute("aria-selected", String(k === selected)); c.tabIndex = k === selected ? 0 : -1; });
   if (current < 0) cells[selected]?.scrollIntoView({ block: "nearest" });
+  saveReviewState();
 }
 
 function openPreview(i) {
@@ -809,14 +837,18 @@ async function rate(change, advance = false) {
   const p = photos[selected];
   if (!p || decisionBusy) return;
   decisionBusy = true;
+  syncUndo();
   const old = await save(p, { status: p.status, stars: p.stars, ...change });
   decisionBusy = false;
   if (old && allPhotos.includes(p)) undoStack.push({ p, old });
-  if (old && advance && autoAdvance && photos[selected] === p && selected < photos.length - 1) {
+  if (old && filter !== "all" && !matchesFilter(p)) {
+    renderGrid({ keepPreview: true });
+  } else if (old && advance && autoAdvance && photos[selected] === p && selected < photos.length - 1) {
     if (current >= 0) openPreview(selected + 1);
     else { select(selected + 1); cells[selected]?.focus({ preventScroll: true }); }
   }
   if (current >= 0) paintActions(photos[current], current);
+  syncUndo();
 }
 
 async function undo() {
@@ -824,10 +856,13 @@ async function undo() {
   const last = undoStack.pop();
   if (!last) return;
   decisionBusy = true;
+  syncUndo();
   const result = await save(allPhotos.find((q) => q.id === last.p.id) || last.p, last.old);
   decisionBusy = false;
   if (!result && allPhotos.some(p => p.id === last.p.id)) undoStack.push(last);
+  if (result && filter !== "all") renderGrid({ keepPreview: true });
   if (current >= 0) paintActions(photos[current], current);
+  syncUndo();
 }
 
 let allPhotos = [];
@@ -839,7 +874,8 @@ const matchesFilter = (p) =>
   filter === "all" || (filter === "unreviewed" ? !p.status : p.status === filter);
 
 function visiblePhotos() {
-  return groupedPhotos().filter(matchesFilter);
+  // Review filters must never hide a decision behind an AI representative.
+  return filter === "all" ? groupedPhotos() : allPhotos.filter(matchesFilter);
 }
 
 function groupedPhotos() {
@@ -857,10 +893,12 @@ function groupedPhotos() {
   return out;
 }
 
-function renderGrid() {
+function renderGrid({ keepPreview = false, photoId = photos[selected]?.id } = {}) {
   const restoreGridFocus = gridEl.contains(document.activeElement) || current >= 0;
+  const previewWasOpen = current >= 0;
   photos = visiblePhotos();
-  openPreview(-1);
+  if (!keepPreview || !photos.length) openPreview(-1);
+  gridEl.classList.toggle("review-rejected", filter === "reject");
   const sizes = new Map();
   for (const p of allPhotos) sizes.set(p.group_id, (sizes.get(p.group_id) || 0) + 1);
   const animate = enterAnim;
@@ -872,7 +910,7 @@ function renderGrid() {
       el("div", { className: "edge" }, el("i", { className: "dx" }), el("span", { className: "fno", textContent: `${i + 1}A` }), el("span", { className: "fname", textContent: p.filename }), el("span", { className: "mark" }), el("span", { className: "stars" })));
     if (p.time_source === "mtime") frame.append(el("span", { className: "badge", title: "Capture time unavailable: using the file’s last modified time", textContent: "!" }));
     const n = sizes.get(p.group_id);
-    if (view === "best" && !searchQ && n > 1 && (p.is_group_pick || expanded.has(p.group_id))) {
+    if (view === "best" && filter === "all" && !searchQ && n > 1 && (p.is_group_pick || expanded.has(p.group_id))) {
       const open = expanded.has(p.group_id);
       frame.append(el("button", {
         type: "button",
@@ -904,15 +942,21 @@ function renderGrid() {
   }
   cells = [...gridEl.querySelectorAll(".cell")];
   photos.forEach((_, i) => paintCell(i));
-  select(selected);
-  if (restoreGridFocus) (cells[selected] || document.getElementById("home")).focus({ preventScroll: true });
+  const restored = photos.findIndex(p => p.id === photoId);
+  select(restored >= 0 ? restored : selected);
+  if (keepPreview && previewWasOpen && photos.length) openPreview(selected);
+  else if (restoreGridFocus) (cells[selected] || document.getElementById("home")).focus({ preventScroll: true });
 }
 
 function showGrid(grid, list) {
   gridEl = grid;
   allPhotos = list;
+  const target = resumePhotoId;
+  const resumed = allPhotos.find(p => p.id === target);
+  if (resumed && !resumed.is_group_pick && view === "best") expanded.add(resumed.group_id);
+  resumePhotoId = null;
   enterAnim = true;
-  renderGrid();
+  renderGrid(target ? { photoId: target } : {});
 }
 
 document.addEventListener("keydown", (e) => {
@@ -934,7 +978,8 @@ document.addEventListener("keydown", (e) => {
   if ((e.key === "Enter" || e.key === " ") && t.closest("button, [role=radio], [role=switch]")) return; // let the focused control act
   const open = current >= 0;
   const move = (i) => (open ? openPreview(Math.min(Math.max(i, 0), photos.length - 1)) : (select(i), cells[selected]?.focus({ preventScroll: true })));
-  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+  const columns = open ? 1 : Math.max(1, getComputedStyle(gridEl).gridTemplateColumns.split(" ").length);
+  const step = { ArrowRight: 1, ArrowDown: columns, ArrowLeft: -1, ArrowUp: -columns }[e.key];
   const key = e.key.toLowerCase();
   if (step !== undefined) move(selected + step);
   else if (e.key === "Enter" || e.key === " ") openPreview(open ? -1 : selected);
@@ -952,6 +997,8 @@ function showError(e) {
 }
 
 function route() {
+  saveReviewState();
+  activeProjectId = null;
   const wasPreviewOpen = current >= 0;
   openPreview(-1);
   if (wasPreviewOpen && !modals.length) document.getElementById("home").focus({ preventScroll: true });
@@ -962,6 +1009,8 @@ function route() {
   selected = 0;
   expanded.clear();
   undoStack.length = 0;
+  for (const button of undoButtons) if (button !== previewUndo) undoButtons.delete(button);
+  syncUndo();
   filter = "all";
   searchQ = "";
   refreshCounts = () => {};
