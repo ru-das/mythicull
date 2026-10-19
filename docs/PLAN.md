@@ -105,3 +105,5 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **U14 Review correctness and continuity.** Keep every matching decision visible in review filters, update filtered results after rating/undo, spatial grid arrows, visible undo, chapter completion, and per-project resume position/view.
 - [x] **U15 Preview inspection and comparison.** Cached-preview zoom/pan with honest resolution labeling, a pinned reference and burst alternatives, keyboard/touch controls, and bounded filenames.
 - [x] **U16 Workspace and export polish.** Compact mobile controls/import details, readable rejected photos, clear suggestion meaning, and export eligibility/rating explanations without changing export rules.
+
+- [x] **M8.2a README accuracy review.** Check documentation against the current implementation; correct model setup, chapter/analysis timing, available settings and undo scope.

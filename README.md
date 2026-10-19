@@ -4,8 +4,9 @@ Local-first photo culling for wedding and event photographers. Import a shoot, l
 
 ## What it does
 - Imports a folder recursively. JPEG, and RAW through the embedded preview. RAW+JPEG pairs are treated as one photo.
-- Splits the shoot into story chapters by time gap (default 15 minutes). Chapters can be renamed; renames survive re-runs.
+- Splits the shoot into story chapters by time gap (default 15 minutes). Chapters with fewer than three photos merge into a neighbour. Chapters can be renamed; renames survive re-runs. After analysis, you can accept suggested chapter names.
 - Groups near-duplicate bursts (within 10 s and similar image embedding) and suggests the sharpest frame in each group. The optional “What to look for” description (for example “candid laughter”) and “Suggested photo priority” slider balance sharpness with how well each frame matches the description.
+- Per-camera time adjustments for shoots with multiple camera models, without changing the original files or EXIF timestamps.
 - Plain-English search ("people dancing") ranked with image embeddings.
 - Keep / reject / star review with filters, counters and undo.
 - Exports XMP sidecars (stars and colour label) for RAW files, or copies the kept photos to a new folder.
@@ -27,7 +28,7 @@ pip install -r requirements.txt
 uvicorn mythicull.main:app --port 8000
 ```
 
-Open http://localhost:8000. The first time you click Analyze photos, the app shows a one-time model download with progress. The model is saved in `~/.mythicull/models/` (inside `MYTHICULL_DATA_DIR`) and loaded from there, so it works offline afterwards. A GPU is strongly recommended: indexing took about 32 s per photo on a CPU in our test and about 1 s or less on a GPU. Browsing and rating work without the model and before indexing finishes.
+Open http://localhost:8000. On startup, the app offers a one-time model download with progress. Choose **Download model** or **Not now**; **Analyze photos** offers the download again if needed. The model is saved in `~/.mythicull/models/` (inside `MYTHICULL_DATA_DIR`) and loaded from there, so it works offline afterwards. A GPU is strongly recommended: recorded CPU tests ranged from about 8 to 32 s per photo, while a 117-photo GPU run took 123 s including model loading. These are example measurements, not a speed guarantee. Browsing and rating work without the model and before indexing finishes.
 
 Environment variables:
 - `MYTHICULL_DATA_DIR`: where projects, thumbnails and embeddings live (default `~/.mythicull`). Never inside a photo folder.
@@ -35,10 +36,11 @@ Environment variables:
 
 ## Usage
 1. Create a project: enter a name and use **Choose folder…** to select the photo folder. Import runs in the background.
-2. Click **Analyze photos**. Indexing can be cancelled and resumes where it stopped. Chapters and Suggested/Every photo views appear when it finishes.
-3. Cull. Suggested view shows one suggestion per group of similar photos; click the count badge to expand a group. Review-state filters show every matching photo. Your last photo, chapter, filter, view and auto-next preference are remembered per project in this browser.
-4. The sun/moon button in the top bar switches between dark and light mode. Dark is the default and your choice is remembered in the browser.
-5. Use the **Export** panel: write XMP sidecars, or choose a destination folder and copy kept photos (optionally one folder per chapter).
+2. Click **Analyze photos**. Indexing can be cancelled and resumes where it stopped. Time-based chapters are available after import; analysis adds similarity groups and suggested frames. Browsing and rating remain available during analysis.
+3. Adjust **Analysis settings** if needed: chapter breaks, **What to look for**, suggestion priority and camera time adjustments (shown for multiple camera models). These preserve your review decisions and renamed chapters.
+4. Cull. Suggested view shows one suggestion per group of similar photos; click the count badge to expand a group. Review-state filters show every matching photo. Your last photo, chapter, filter, view and auto-next preference are remembered per project in this browser.
+5. The sun/moon button in the top bar switches between dark and light mode. Dark is the default and your choice is remembered in the browser.
+6. Use the **Export** panel: write XMP sidecars, or choose a destination folder and copy kept photos (optionally one folder per chapter).
 
 Folder selection opens on the computer running MythiCull. Use the browser on that same desktop via `localhost` or `127.0.0.1`. Windows and macOS use Python's Tk folder dialog; Linux uses Zenity or KDialog when installed, with Tk as a fallback (`python3-tk` on Debian/Ubuntu). If no desktop dialog is available, the UI offers manual path entry. XMP export writes beside the originals and needs no destination selection.
 
@@ -62,11 +64,12 @@ Export always uses the whole project, including photos outside the current chapt
 | 0 to 5 | Set stars |
 | `/` | Focus the search box |
 | Enter (in search box) | Run search |
-| Ctrl/Cmd+Z | Undo the last decision (lost on page reload) |
+| Ctrl/Cmd+Z | Undo the last decision (history resets on navigation or reload) |
 | Z (in preview) | Toggle fit / cached-preview pixels |
 
 ## Limitations
 - Search scores are only good for ranking within one query; there is no relevance cut-off.
+- Camera time adjustments are keyed by camera model, so two bodies of the same model share one adjustment. Captions still show the original capture time.
 - The duplicate threshold (0.92) was tuned on easy burst frames, not a real moving-subject shoot.
 - XMP is written for RAW files only (not JPEG or DNG). A RAW+JPEG pair gets one sidecar named after the RAW. Sidecars have not yet been checked in Lightroom Classic or darktable.
 - RAW support relies on the embedded preview and is tested with mocks, not real RAW files.
