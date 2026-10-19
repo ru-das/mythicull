@@ -19,7 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MOCK = r'''
 const calls = [];
 let modelReady = false, failSave = false, failSearch = false, failModel = true;
-const fixture = Array.from({length:8}, (_, i) => ({id:String(i), filename:i === 0 ? 'Wedding_長い名前_' + 'long_name_'.repeat(12) + '.jpg' : `Photo_${i}.jpg`, capture_time:'2026-10-19T14:30:00',time_source:i===0?'mtime':'exif',status:null,stars:0,group_id:i<2?'burst':String(i),is_group_pick:i!==1}));
+let exportResult={status:'done',done:8,total:8,failures:[{item:'foreign.xmp',error:'Existing sidecar skipped'}]};
+const fixture = Array.from({length:8}, (_, i) => ({id:String(i), filename:i === 0 ? 'Wedding_長い名前_' + 'long_name_'.repeat(12) + '.jpg' : i===1?'Alternative.NEF':i===2?'Kept.CR2':i===3?'Photo_3.dng':`Photo_${i}.jpg`, capture_time:'2026-10-19T14:30:00',time_source:i===0?'mtime':'exif',status:null,stars:0,group_id:i<2?'burst':String(i),is_group_pick:i!==1}));
 const project = {id:'test', name:'Wedding — a long project name for responsive review',folder:'/synthetic/shoot',photo_count:8,chapter_gap_minutes:15,vibe_weight:0.5,last_import:{found:8,imported:8,already_present:0,skipped:[]}};
 window.fetch = async (url, opts = {}) => {
  const body = opts.body ? JSON.parse(opts.body) : null;
@@ -41,7 +42,7 @@ window.fetch = async (url, opts = {}) => {
  }
  else if(url.endsWith('/index')) out={job_id:'analysis'};
  else if(url.includes('/export/')) out={job_id:'export'};
- else if(url.startsWith('/api/jobs/')) out={status:url.endsWith('download')&&failModel?'failed':'done',done:8,total:8,failures:url.endsWith('download')&&failModel?[{error:'Download unavailable'}]:url.endsWith('export')?[{item:'foreign.xmp',error:'Existing sidecar skipped'}]:[]};
+ else if(url.startsWith('/api/jobs/')) out=url.endsWith('export')?exportResult:{status:url.endsWith('download')&&failModel?'failed':'done',done:8,total:8,failures:url.endsWith('download')&&failModel?[{error:'Download unavailable'}]:[]};
  return {ok,json:async()=>out};
 };
 window.addEventListener('error', e=>document.body.dataset.error=e.message);
@@ -62,6 +63,13 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   await document.querySelector('[aria-label="Choose photo folder"]').onclick();
   await document.querySelector('form').onsubmit({preventDefault(){}}); await wait(); await wait();
   assert(cells.length===7,'Import and grouped browsing');
+  assert(!document.querySelector('.import-details').open,'Successful import details collapsed');
+  const initialOptions=document.querySelector('.review-options-toggle');
+  if(getComputedStyle(initialOptions).display!=='none') {
+    assert(getComputedStyle(document.querySelector('.review-options-body')).display==='none','Mobile review options initially collapsed');
+    initialOptions.click();assert(document.querySelector('.review-options-body').getClientRects().length,'Review options accessible on mobile');
+    key('Escape',initialOptions);assert(initialOptions.getAttribute('aria-expanded')==='false','Escape closes review options');
+  }
   assert(document.querySelector('.sidebar').firstElementChild.textContent==='Chapters','Chapters first');
   assert(button('Analysis settings').getAttribute('aria-expanded')==='false','Settings collapsed');
   assert(cells.filter(c=>c.tabIndex===0).length===1,'One photo tab stop');
@@ -97,6 +105,13 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   assert(previewZoom && currentViewport.classList.contains('zoomed') && previewInfo.textContent.includes('not original resolution'),'Zoom honestly labels cached preview');
   const zoomSelection=selected;currentViewport.focus();key('ArrowRight');
   assert(selected===zoomSelection && (currentViewport.clientWidth>=bigImg.naturalWidth || currentViewport.scrollLeft>0),'Zoom arrows pan without changing photo');
+  currentViewport.style.cssText='flex:none;width:200px;height:120px';currentViewport.scrollLeft=currentViewport.scrollTop=0;
+  let panReleased=0;currentViewport.setPointerCapture=()=>{};currentViewport.hasPointerCapture=()=>true;currentViewport.releasePointerCapture=()=>panReleased++;
+  currentViewport.dispatchEvent(new PointerEvent('pointerdown',{pointerId:11,pointerType:'mouse',button:0,clientX:100,clientY:100}));
+  currentViewport.dispatchEvent(new PointerEvent('pointermove',{pointerId:11,clientX:40,clientY:60}));
+  assert(currentViewport.scrollLeft===60 && currentViewport.scrollTop===40,'Mouse drag pans cached image');
+  currentViewport.dispatchEvent(new PointerEvent('pointercancel',{pointerId:11}));assert(panReleased===1 && !currentViewport.classList.contains('panning'),'Interrupted pan releases capture');
+  for(const prop of ['setPointerCapture','hasPointerCapture','releasePointerCapture']) delete currentViewport[prop];currentViewport.removeAttribute('style');
   compareBtn.click();assert(!referencePane.hidden && referencePhoto.id===photos[0].id,'Pin reference');
   const alternative=burstStrip.querySelectorAll('button')[1];assert(alternative,'Burst alternative available');alternative.click();
   assert(current===1 && referencePhoto.id==='0' && !referencePane.hidden && referenceImg.alt!==bigImg.alt,'Compare keeps reference while choosing burst alternative');
@@ -132,11 +147,17 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   await button('Download model').onclick();assert(document.querySelector('.model-card .error').textContent.includes('Download unavailable'),'Model failure visible');
   failModel=false;modelReady=true;await button('Retry download').onclick();assert(button('Done'),'Model retry installed');button('Done').click();
   await button('Analyze photos').onclick();assert(calls.some(c=>c.url.endsWith('/index')),'Analysis runs');
-  button('Export').click();await button('Save ratings to XMP').onclick();await wait();assert(app.textContent.includes('7 written, 1 skipped') && app.textContent.includes('foreign.xmp'),'Export summary and skips');
+  fixture[1].status='keep';fixture[2].status='reject';fixture[3].status='keep';fixture[4].stars=4;
+  button('Export').click();await wait();
+  assert(document.querySelector('.export-preview').textContent.includes('2 RAW photos eligible') && document.querySelector('.export-preview').textContent.includes('2 decided photos excluded') && document.querySelector('.export-preview').textContent.includes('1 stars-only photo excluded'),'Whole-project export eligibility covers RAW/JPEG/DNG and stars-only');
+  assert(app.textContent.includes('0 becomes 1') && app.textContent.includes('regardless of the chapter'),'Export mapping and scope explicit');
+  await button('Save ratings to XMP').onclick();await wait();assert(app.textContent.includes('7 written, 1 skipped') && app.textContent.includes('foreign.xmp'),'Export summary and skips');
   await document.querySelector('[aria-label="Choose copy photos to"]').onclick();button('Copy kept photos').click();await wait();assert(calls.some(c=>c.body?.destination==='/synthetic/export'),'Copy export');
-  fixture[1].status='keep';fixture[2].status='keep';expanded.clear();filter='keep';view='best';showGrid(gridEl,fixture.map(p=>({...p})));
+  exportResult={...exportResult,status:'cancelled',done:2};await button('Save ratings to XMP').onclick();await wait();assert(app.textContent.includes('1 written, 1 skipped. 6 not processed'),'Cancelled export never claims unprocessed photos were written');exportResult={...exportResult,status:'done',done:8};
+  fixture[1].status='keep';fixture[2].status='keep';fixture[3].status=null;expanded.clear();filter='keep';view='best';showGrid(gridEl,fixture.map(p=>({...p})));
   assert(photos.length===2 && photos.some(p=>p.id==='1'),'Kept filter exposes non-suggested burst member');
   assert(!document.querySelector('.count'),'Filtered decisions never collapse into groups');
+  filter='reject';renderGrid();assert(gridEl.classList.contains('review-rejected') && getComputedStyle(cells[0].querySelector('img')).opacity==='1','Rejected review preserves image visibility');filter='keep';renderGrid();
   openPreview(0);await rate({status:'reject'},true);
   assert(photos.length===1 && photos[0].id==='2' && current===0,'Filtered rating removes photo without skipping next or closing preview');
   assert(!previewUndo.disabled,'Visible undo enabled');await undo();
@@ -148,10 +169,15 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   cells[selected].focus();openPreview(selected);location.hash='#/';await wait();assert(current===-1 && !app.inert && document.body.style.overflow!=='hidden','Route closes preview');
   location.hash='#/p/test';await wait();await wait();
   assert(photos[selected].id===resumeId && reviewChapterId==='chapter' && filter==='unreviewed' && view==='all' && !autoAdvance,'Project restores photo, chapter, filter, view and auto-next');
-  button('All').click();button('Suggested').click();
+  button('All').click();const restoredOptions=document.querySelector('.review-options-toggle');if(getComputedStyle(restoredOptions).display!=='none') restoredOptions.click();button('Suggested').click();if(getComputedStyle(restoredOptions).display!=='none') key('Escape',restoredOptions);
+  location.hash='#/';await wait();localStorage.setItem('mythicull-review-test',JSON.stringify({chapterId:'removed',photoId:'removed',filter:'all',view:'best'}));location.hash='#/p/test';await wait();await wait();
+  assert(reviewChapterId===null && selected===0 && photos.length,'Stale chapter and photo resume safely');
+  location.hash='#/';await wait();localStorage.setItem('mythicull-review-test','invalid JSON');location.hash='#/p/test';await wait();await wait();
+  assert(filter==='all' && view==='best' && autoAdvance && selected===0,'Corrupt browser state falls back to usable defaults');
   applyTheme(TEST_THEME,false);
   if(TEST_ZOOM) document.documentElement.style.zoom='2';
   assert(document.documentElement.scrollWidth<=innerWidth+1,'No horizontal overflow');
+  if(innerWidth<=600 && !TEST_ZOOM) assert(gridEl.getBoundingClientRect().top+scrollY<450,'Mobile first photos visible without excess chrome: '+JSON.stringify({gridTop:gridEl.getBoundingClientRect().top,scrollY,bar:topbar.offsetHeight,work:document.querySelector('.workbar').offsetHeight}));
   // Sample final colors rather than a compositor transition between radio states.
   const contrastStyles=document.createElement('style');contrastStyles.textContent='* {transition:none !important}';document.head.append(contrastStyles);
   const luminance = rgb => rgb.slice(0,3).map(v=>{v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;}).reduce((n,v,i)=>n+v*[0.2126,0.7152,0.0722][i],0);
@@ -179,16 +205,18 @@ const key = (value, target=document.activeElement, extra={}) => target.dispatchE
   stickyView.style.animation='none';
   const stickyGrid=document.querySelector('.grid'), savedMinHeight=stickyGrid.style.minHeight;
   stickyGrid.style.minHeight='3000px';
-  const stickyTop=parseFloat(getComputedStyle(stickySide).top);
+  const stickyTop=parseFloat(getComputedStyle(stickySide).top)*(parseFloat(getComputedStyle(document.documentElement).zoom)||1);
   window.scrollTo(0,stickySide.getBoundingClientRect().top+scrollY+200);await wait();
   assert(Math.abs(stickySide.getBoundingClientRect().top-stickyTop)<2,'Sidebar stays pinned while photos scroll: '+JSON.stringify({actual:stickySide.getBoundingClientRect().top,expected:stickyTop,scrollY,height:stickySide.offsetHeight,bar:topbar.offsetHeight,layout:stickySide.parentElement.getBoundingClientRect().toJSON()}));
-  assert(stickySide.getBoundingClientRect().bottom<=innerHeight,'Sticky sidebar fits viewport');
+  // CSS zoom scales vh-based bounds differently from native browser zoom.
+  if(!TEST_ZOOM) assert(stickySide.getBoundingClientRect().bottom<=innerHeight,'Sticky sidebar fits viewport');
   const priorSideScroll=stickySide.scrollTop;stickySide.scrollTop=stickySide.scrollHeight;
   if(stickySide.scrollHeight>stickySide.clientHeight) assert(stickySide.scrollTop>priorSideScroll,'Sidebar scrolls independently');
   stickySide.scrollTop=0;stickyGrid.style.minHeight=savedMinHeight;stickyView.style.animation=savedAnimation;
   if(narrowSidebar) stickyToggle.click();
   window.scrollTo(0,0);
   if(TEST_SETTINGS) {const b=document.querySelector('.side-toggle');if(getComputedStyle(b).display!=='none') b.click();button('Analysis settings').click();await wait();document.querySelector('.help-button').focus();}
+  if(TEST_EXPORT) {button('Export').click();await wait();window.scrollTo(0,0);}
   if(TEST_PREVIEW) {openPreview(0);if(TEST_COMPARE){compareBtn.click();openPreview(1);}await wait();document.body.dataset.geometry=JSON.stringify({overlay:overlay.getBoundingClientRect().toJSON(),footer:document.querySelector('.lb-footer').getBoundingClientRect().toJSON(),height:innerHeight,scrollY});assert(document.querySelector('.lb-footer').getBoundingClientRect().bottom<=innerHeight+1,'Footer stays in viewport');assert(bigImg.getBoundingClientRect().bottom<=document.querySelector('.lb-footer').getBoundingClientRect().top+1,'Image and footer do not overlap');}
   document.body.dataset.checks='passed';
  } catch(e) {document.body.dataset.checks='failed: '+e.message;}
@@ -204,6 +232,7 @@ def main() -> None:
     parser.add_argument('--theme', choices=['dark', 'light'], default='dark')
     parser.add_argument('--preview', action='store_true')
     parser.add_argument('--settings', action='store_true')
+    parser.add_argument('--export-panel', action='store_true', help='Capture export preview')
     parser.add_argument('--compare', action='store_true', help='Capture pinned-reference comparison in preview')
     parser.add_argument('--zoom', action='store_true', help='Simulate 200 percent with CSS zoom')
     parser.add_argument('--reduced', action='store_true')
@@ -221,7 +250,7 @@ def main() -> None:
     css = (ROOT / 'web/styles.css').read_text().replace('url("/fonts/', f'url("file://{ROOT}/web/fonts/')
     html = (ROOT / 'web/index.html').read_text().replace('<link rel="stylesheet" href="/styles.css">', '<style>' + css + '</style>')
     html = html.replace('<link rel="preload"', '<link rel="alternate"')
-    config = f'const TEST_THEME={args.theme!r}, TEST_PREVIEW={str(args.preview).lower()}, TEST_ZOOM={str(args.zoom).lower()}, TEST_SETTINGS={str(args.settings).lower()}, TEST_COMPARE={str(args.compare).lower()};'
+    config = f'const TEST_THEME={args.theme!r}, TEST_PREVIEW={str(args.preview).lower()}, TEST_ZOOM={str(args.zoom).lower()}, TEST_SETTINGS={str(args.settings).lower()}, TEST_COMPARE={str(args.compare).lower()}, TEST_EXPORT={str(args.export_panel).lower()};'
     html = html.replace('<script type="module" src="/app.js"></script>', '<script>"use strict";\n' + config + MOCK + js + CHECKS + '</script>')
     output = Path(args.output).resolve()
     output.with_suffix('.html').write_text(html)

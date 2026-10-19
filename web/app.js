@@ -371,9 +371,11 @@ async function showList() {
 function summaryView(p) {
   const s = p.last_import;
   const box = el("div", { className: "summary" }, el("p", { textContent: `${p.photo_count} photos in ${p.folder}` }));
+  const details = el("details", { className: "import-details", open: !s || !p.photo_count || !!s.skipped.length },
+    el("summary", {}, `Import details · ${p.photo_count} photos`, icon("chevron")), box);
   if (!s) {
     box.append(el("p", { className: "muted", textContent: "No import summary yet (import still running or interrupted)." }));
-    return box;
+    return details;
   }
   box.append(el("p", { className: "muted", textContent: `Found ${s.found}, imported ${s.imported}, already present ${s.already_present}, skipped ${s.skipped.length}.` }));
   if (!p.photo_count) {
@@ -384,13 +386,14 @@ function summaryView(p) {
     for (const k of s.skipped) ul.append(el("li", { textContent: `${k.path}: ${k.reason}` }));
     box.append(el("h3", { textContent: "Skipped files" }), ul);
   }
-  return box;
+  return details;
 }
 
 /* ---------- project workspace ---------- */
 
 let pollTimer = null;
 let indexTimer = null;
+let exportTimer = null;
 
 async function showProject(id, jobId) {
   activeProjectId = id;
@@ -447,10 +450,12 @@ async function showProject(id, jobId) {
   const counters = el("div", { className: "counters", attrs: { role: "group" } });
   [sAll, sKept, sRej, sNew].forEach((s) => { s.node.prepend(s.n); counters.append(s.node); });
   let chapterProject = null;
+  let refreshExportPreview = async () => {};
   let rcTimer = null;
   refreshCounts = () => { clearTimeout(rcTimer); rcTimer = setTimeout(() => chapterProject && loadChapters(chapterProject), 250); };
   const loadChapters = async (p) => {
     chapterProject = p;
+    grid.dataset.suggestionReason = p.vibe_prompt && p.vibe_weight > 0 ? "Suggested for your description" + (p.vibe_weight < 1 ? " and sharpness" : "") : "Suggested for sharpness";
     const chapters = await api(`/projects/${id}/chapters`);
     const cameras = await api(`/projects/${id}/cameras`);
     const total = (k) => chapters.reduce((n, c) => n + c[k], 0);
@@ -555,10 +560,12 @@ async function showProject(id, jobId) {
     side.replaceChildren(el("h3", { textContent: "Chapters" }),
       el("ul", { className: "chapters" }, entry(null, 0), ...chapters.map((c, i) => entry(c, i))), settings.head, settings.wrap);
     if (focusedLabel) [...side.querySelectorAll("[aria-label]")].find(node => node.getAttribute("aria-label") === focusedLabel)?.focus({ preventScroll: true });
+    await refreshExportPreview();
   };
   const render = async () => {
     const p = await api(`/projects/${id}`);
     head.textContent = p.name;
+    head.title = p.name;
     status.replaceChildren(summaryView(p));
     await loadChapters(p);
     await loadGrid();
@@ -612,7 +619,14 @@ async function showProject(id, jobId) {
   const advance = toggle("Auto-Next after rating", autoAdvance, (on) => { autoAdvance = on; saveReviewState(); }, "Move to the next photo after marking Keep (P) or Reject (X)");
   const undoBtn = el("button", { type: "button", className: "btn", textContent: "Undo", title: "Undo last rating (Ctrl/Cmd+Z)", onclick: undo, disabled: true });
   undoButtons.add(undoBtn);
-  barSlot.replaceChildren(searchWrap, filterSeg, viewSeg, advance);
+  const optionsBtn = el("button", { type: "button", className: "btn review-options-toggle", textContent: "Options", attrs: { "aria-label": "Review options", "aria-expanded": "false", "aria-controls": "review-options-body" } });
+  const optionsBody = el("div", { id: "review-options-body", className: "review-options-body" }, viewSeg, advance);
+  const options = el("div", { className: "review-options" }, optionsBtn, optionsBody);
+  const closeOptions = () => { optionsBody.classList.remove("open"); optionsBtn.setAttribute("aria-expanded", "false"); };
+  optionsBtn.onclick = () => optionsBtn.setAttribute("aria-expanded", String(optionsBody.classList.toggle("open")));
+  options.onkeydown = e => { if (e.key === "Escape") { closeOptions(); optionsBtn.focus(); e.stopPropagation(); } };
+  barSlot.replaceChildren(searchWrap, filterSeg, options);
+  const exportPreview = el("div", { className: "export-preview", attrs: { role: "status", "aria-label": "Project export eligibility" } });
   const exportMsg = el("div", { attrs: { role: "status" } });
   const runExport = async (path, body, label) => {
     exportMsg.replaceChildren(el("span", { className: "muted", textContent: `${label}…` }));
@@ -622,12 +636,14 @@ async function showProject(id, jobId) {
         const j = await api(`/jobs/${job_id}`);
         if (["queued", "running"].includes(j.status)) {
           exportMsg.firstChild.textContent = `${label}: ${j.done}/${j.total}…`;
-          indexTimer = setTimeout(() => poll().catch(showError), 500);
+          exportTimer = setTimeout(() => poll().catch(e => exportMsg.replaceChildren(el("p", { className: "error", textContent: `Could not check export progress: ${e.message}` }))), 500);
           return;
         }
         const fails = j.failures;
+        const skipped = fails.filter(f => f.item).length;
+        const remaining = Math.max(0, j.total - j.done);
         exportMsg.replaceChildren(
-          el("p", { className: j.status === "done" ? "" : "error", textContent: `${label} ${j.status}: ${j.total - fails.length} written, ${fails.length} skipped.` }),
+          el("p", { className: j.status === "done" ? "" : "error", textContent: `${label} ${j.status}: ${Math.max(0, j.done - skipped)} written, ${skipped} skipped.${remaining ? ` ${remaining} not processed.` : ""}` }),
           el("ul", {}, ...fails.map((f) => el("li", { className: "muted", textContent: f.item ? `${f.item}: ${f.error}` : f.error }))));
       };
       await poll();
@@ -638,7 +654,13 @@ async function showProject(id, jobId) {
   const dest = el("input");
   let perChapter = false;
   const exp = panel("Export",
-    el("p", { className: "muted", textContent: "Save Keep, Reject and star ratings beside supported RAW files as XMP for Lightroom or darktable, or copy kept photos to another folder." }),
+    el("p", { className: "muted", textContent: "Exports use the whole project, regardless of the chapter, search or filter shown." }),
+    exportPreview,
+    el("p", { className: "muted", textContent: "XMP keeps use Green and at least 1 star (0 becomes 1). Rejects use Red and 0 stars." }),
+    el("details", { className: "export-help" }, el("summary", {}, "Export rules and compatibility", icon("chevron")),
+      el("p", { className: "muted", textContent: "Photos with only stars and no Keep/Reject decision are excluded. JPEG and DNG need copy export." }),
+      el("p", { className: "muted", textContent: "Copy export copies kept originals and RAW+JPEG companions. Ratings are listed in the manifest; original file metadata stays unchanged." }),
+      el("p", { className: "muted", textContent: "Existing sidecars from another app are skipped. Clearing a decision later does not remove its XMP sidecar. Lightroom/darktable compatibility still needs a real-shoot check." })),
     el("div", { className: "row" }, el("button", { type: "button", className: "btn", textContent: "Save ratings to XMP", title: "Keep/reject/stars for Lightroom or darktable (RAW only)", onclick: () => runExport(`/projects/${id}/export/xmp`, null, "XMP export") })),
     el("div", { className: "row" }, folderField("Copy photos to", "export", dest),
       toggle("One folder per chapter", false, (on) => { perChapter = on; }),
@@ -647,6 +669,22 @@ async function showProject(id, jobId) {
         runExport(`/projects/${id}/export/copy`, { destination: dest.value, per_chapter: perChapter }, "Copy export");
       } })),
     exportMsg);
+  refreshExportPreview = async () => {
+    if (exp.head.getAttribute("aria-expanded") !== "true") return;
+    try {
+      const list = await api(`/projects/${id}/photos`);
+      const decided = list.filter(p => p.status === "keep" || p.status === "reject");
+      const eligible = decided.filter(p => /\.(cr2|cr3|nef|arw|raf)$/i.test(p.filename)).length;
+      const excluded = decided.length - eligible;
+      const starsOnly = list.filter(p => !p.status && p.stars > 0).length;
+      const kept = list.filter(p => p.status === "keep").length;
+      exportPreview.replaceChildren(
+        el("p", { textContent: `XMP: ${eligible} RAW photo${eligible === 1 ? "" : "s"} eligible by file type · ${excluded} decided photo${excluded === 1 ? "" : "s"} excluded by file type · ${starsOnly} stars-only photo${starsOnly === 1 ? "" : "s"} excluded.` }),
+        el("p", { textContent: `Copy: ${kept} kept photo${kept === 1 ? "" : "s"}, plus any RAW+JPEG companions.` }),
+        el("p", { className: "muted", textContent: "Missing files and existing sidecars are checked during export; the result lists every skip." }));
+    } catch (e) { exportPreview.textContent = `Could not check export counts: ${e.message}. Close and reopen Export to retry.`; }
+  };
+  exp.head.addEventListener("click", () => refreshExportPreview());
   const sideToggle = el("button", { type: "button", className: "btn side-toggle", textContent: "Chapters and settings", attrs: { "aria-controls": "chapter-sidebar", "aria-expanded": "false" } });
   sideToggle.onclick = () => { const open = side.classList.toggle("open"); sideToggle.setAttribute("aria-expanded", String(open)); };
   page.append(el("div", { className: "workbar" }, indexBox, counters, searchMsg, undoBtn, el("span", { className: "push" }, exp.head)), exp.wrap, sideToggle, el("div", { className: "layout" }, side, grid));
@@ -1011,6 +1049,9 @@ function renderGrid({ keepPreview = false, photoId = photos[selected]?.id } = {}
       el("div", { className: "edge" }, el("i", { className: "dx" }), el("span", { className: "fno", textContent: `${i + 1}A` }), el("span", { className: "fname", textContent: p.filename }), el("span", { className: "mark" }), el("span", { className: "stars" })));
     if (p.time_source === "mtime") frame.append(el("span", { className: "badge", title: "Capture time unavailable: using the file’s last modified time", textContent: "!" }));
     const n = sizes.get(p.group_id);
+    if (view === "best" && filter === "all" && !searchQ && n > 1 && p.is_group_pick) {
+      frame.append(el("span", { className: "pick-label", textContent: "Suggested", title: gridEl.dataset.suggestionReason || "Suggested photo", attrs: { "aria-label": gridEl.dataset.suggestionReason || "Suggested photo" } }));
+    }
     if (view === "best" && filter === "all" && !searchQ && n > 1 && (p.is_group_pick || expanded.has(p.group_id))) {
       const open = expanded.has(p.group_id);
       frame.append(el("button", {
@@ -1106,6 +1147,7 @@ function route() {
   if (wasPreviewOpen && !modals.length) document.getElementById("home").focus({ preventScroll: true });
   clearTimeout(pollTimer);
   clearTimeout(indexTimer);
+  clearTimeout(exportTimer);
   photos = [];
   allPhotos = [];
   selected = 0;

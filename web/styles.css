@@ -352,6 +352,39 @@ main { padding: 28px 24px 60px; }
 .lb-error { margin: 0; padding: 8px 20px; color: #ff8c76; }
 .lb-error:empty { display: none; }
 
+.import-details { color: var(--muted); font-size: 13px; }
+.import-details > summary { display: flex; align-items: center; gap: 8px; width: fit-content; min-height: 32px; cursor: pointer; }
+.import-details > summary .ic { width: 14px; height: 14px; }
+.import-details[open] > summary .ic { transform: rotate(180deg); }
+.review-options { display: contents; }
+.review-options-toggle { display: none; }
+.review-options-body { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.export-preview { display: grid; gap: 6px; }
+.export-preview p { margin: 0; }
+.panel-body > p { margin: 0; max-width: 75ch; }
+.export-help summary { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; color: var(--ink); }
+.export-help summary .ic { width: 14px; height: 14px; }
+.export-help[open] summary .ic { transform: rotate(180deg); }
+.export-help p { margin-block: 8px; }
+.indexbox > .error:empty { display: none; }
+.grid.review-rejected .cell.reject .frame img { opacity: 1; }
+.grid.review-rejected .cell.reject .frame::after { display: none; }
+.pick-label { position: absolute; top: 6px; right: 6px; padding: 3px 6px; background: #191919; color: #e8bd62; font-size: 11px; border-radius: 3px; }
+@media (max-width: 900px) {
+  .review-options { display: block; position: relative; flex: 1; min-width: 80px; }
+  .review-options-toggle { display: flex; justify-content: center; width: 100%; min-height: 44px; padding-inline: 10px; border-width: 1px; border-color: var(--line); }
+  .review-options-body { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: min(360px, calc(100vw - 28px)); padding: 12px; flex-direction: column; align-items: flex-start; gap: 12px; background: var(--bar); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 8px 20px var(--shadow); }
+  .review-options-body:not(.open) { display: none; }
+  .bar-slot .review-options-body .switch { flex: none; }
+}
+@media (max-width: 600px) {
+  .proj-head h2 { font-size: 24px; line-height: 1.15; }
+  .workbar { column-gap: 8px; }
+  .workbar > .btn { padding-inline: 10px; }
+  .review-options-toggle { font-size: 13px; }
+  .import-details > summary { min-height: 32px; }
+}
+
 /* Inspect cached pixels and compare expressions without leaving the review. */
 .lb-stage { gap: 16px; }
 .lb-pane { flex: 1 1 0; height: 100%; min-width: 0; min-height: 0; margin: 0; display: flex; flex-direction: column; }

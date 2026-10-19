@@ -46,6 +46,10 @@ Your photo folder is read-only. The only files MythiCull ever writes there are `
 
 In the large preview, **Preview pixels** (or **Z**) shows the cached preview at one image pixel per CSS pixel. Scroll, drag with a mouse, or focus the image and use arrows to pan; **Fit photo** returns to the whole frame. The cache is at most 1600px on its long edge, so this does not show original-resolution RAW detail. **Pin reference** keeps one photo visible while you navigate or choose a similar frame from the thumbnail strip. Ratings always apply to the current photo. On phones, the reference and current photo stack vertically. Clear the reference or close the preview to leave comparison.
 
+On narrow screens, **Options** holds Suggested/Every photo and Auto-Next. Successful import details stay collapsed; imports with skipped files show their details. The Rejected view shows photos at normal brightness for a second look.
+
+Export always uses the whole project, including photos outside the current chapter, search and filter. Its preview counts eligibility by file type; missing originals and protected sidecars are checked during export. XMP maps keeps to Green and at least 1 star (0 becomes 1), rejects to Red and 0 stars, and excludes stars-only photos without Keep/Reject. JPEG and DNG are excluded from XMP. Copy export copies kept originals and companions unchanged and records stars in its manifest; it does not embed ratings in the copied files. Clearing a decision does not remove an earlier sidecar.
+
 ## Keyboard shortcuts
 | Key | Action |
 | --- | --- |
