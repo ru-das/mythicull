@@ -97,3 +97,5 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **U10 Setting help tips.** Move the three setting descriptions beside their headings into circled-question help tips, simplify the wording, and support hover, keyboard and touch.
 
 - [x] **U11 Help focus outline.** Use a circular keyboard focus ring on help icons and avoid a mouse-focus outline.
+
+- [x] **U12 Auto-next label.** Change “Next after rating” to “Auto-Next after rating”.

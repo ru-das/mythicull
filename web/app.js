@@ -601,7 +601,7 @@ async function showProject(id, jobId) {
   indexBox.append(indexBtn, indexMsg);
   const filterSeg = seg("Show photos by review state", [["all", "All"], ["unreviewed", "Unreviewed"], ["keep", "Kept"], ["reject", "Rejected"]], filter, (v) => { filter = v; renderGrid(); }, true);
   const viewSeg = seg("Similar-photo view", [["best", "Suggested", "Show one suggested photo per similar-photo group; this does not mark photos as kept"], ["all", "Every photo", "Show every photo, including similar shots"]], view, (v) => { view = v; renderGrid(); }, true);
-  const advance = toggle("Next after rating", autoAdvance, (on) => { autoAdvance = on; }, "Move to the next photo after marking Keep (P) or Reject (X)");
+  const advance = toggle("Auto-Next after rating", autoAdvance, (on) => { autoAdvance = on; }, "Move to the next photo after marking Keep (P) or Reject (X)");
   barSlot.replaceChildren(searchWrap, filterSeg, viewSeg, advance);
   const exportMsg = el("div", { attrs: { role: "status" } });
   const runExport = async (path, body, label) => {
