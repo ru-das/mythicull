@@ -153,7 +153,7 @@ function slider({ value, min = 0, max = 1, step = 0.05, title = "", onCommit }) 
     fill.style.width = pct + "%";
     thumb.style.left = pct + "%";
     root.setAttribute("aria-valuenow", cur);
-    root.setAttribute("aria-valuetext", Math.round(pct) + "%");
+    root.setAttribute("aria-valuetext", `${Math.round(100 - pct)}% sharpness, ${Math.round(pct)}% description match`);
   };
   const set = (v) => { cur = Number(Math.min(max, Math.max(min, Math.round(v / step) * step)).toFixed(4)); paint(); };
   const commit = () => { clearTimeout(timer); if (cur !== last) { last = cur; onCommit(cur); } };
@@ -289,7 +289,7 @@ async function showList() {
         el("span", {}, el("strong", { className: "roll-name", textContent: p.name }), el("span", { className: "roll-folder", textContent: p.folder })),
         el("span", { className: "roll-count" }, el("b", { textContent: String(p.photo_count) }), "photos"))));
   });
-  if (!projects.length) list.append(el("li", { className: "empty", textContent: "No projects yet." }));
+  if (!projects.length) list.append(el("li", { className: "empty", textContent: "No projects yet. Create one above to start reviewing photos." }));
   app.replaceChildren(el("div", { className: "view home" },
     el("section", {}, el("h2", { textContent: "New project" }), form),
     el("section", {}, el("h2", { textContent: "Projects" }), list)));
@@ -328,7 +328,7 @@ async function showProject(id, jobId) {
   const side = el("nav", { className: "sidebar", attrs: { "aria-label": "Chapters and settings" } });
   let chapterId = null;
   const searchMsg = el("span", { className: "hit muted" });
-  const searchBox = el("input", { type: "text", id: "search", placeholder: "Search photos (/)", title: "Plain-English search, e.g. people dancing", attrs: { "aria-label": "Search photos" } });
+  const searchBox = el("input", { type: "text", id: "search", placeholder: "Search: people dancing…", title: "Describe a photo, e.g. people dancing. Press / to focus search.", attrs: { "aria-label": "Search photos" } });
   const clearBtn = el("button", { type: "button", className: "clear", title: "Clear search", attrs: { "aria-label": "Clear search" } }, icon("close"));
   const searchWrap = el("div", { className: "search" }, icon("search"), searchBox, clearBtn);
   const syncClear = () => searchWrap.classList.toggle("has", !!searchBox.value);
@@ -340,7 +340,7 @@ async function showProject(id, jobId) {
     try {
       const hits = await api(`/projects/${id}/search?q=${encodeURIComponent(searchQ)}&${ch}`);
       showGrid(grid, hits);
-      searchMsg.textContent = hits.length ? `${hits.length} best matches` : "No matches. Index the photos first?";
+      searchMsg.textContent = hits.length ? `${hits.length} best matches` : "No search results. Analyze photos first if you haven’t already.";
     } catch (e) {
       searchQ = "";
       searchBox.value = "";
@@ -372,7 +372,7 @@ async function showProject(id, jobId) {
     roll(sAll.n, all); roll(sKept.n, kept); roll(sRej.n, rejected); roll(sNew.n, all - kept - rejected);
     counters.setAttribute("aria-label", `${all} photos, ${kept} kept, ${rejected} rejected, ${all - kept - rejected} unreviewed`);
     if (chapterId && !chapters.some((c) => c.id === chapterId)) chapterId = null;
-    const gap = stepper({ value: p.chapter_gap_minutes, min: 1, title: "Minutes of quiet that start a new chapter", onCommit: async (n) => {
+    const gap = stepper({ value: p.chapter_gap_minutes, min: 1, title: "Start a new chapter after this many minutes between photos", onCommit: async (n) => {
       try {
         const np = await api(`/projects/${id}`, jsonBody("PATCH", { chapter_gap_minutes: n }));
         await loadChapters(np);
@@ -391,10 +391,11 @@ async function showProject(id, jobId) {
         await loadChapters(await api(`/projects/${id}`)); // put the controls back to the saved values
       }
     };
-    const vibe = el("input", { type: "text", value: p.vibe_prompt || "", placeholder: "e.g. candid laughter", title: "Group picks lean toward photos matching this text" });
+    const vibe = el("input", { type: "text", value: p.vibe_prompt || "", placeholder: "e.g. candid laughter", title: "Optional description to help choose a photo from each similar-photo group", attrs: { "aria-label": "What to look for (optional)", "aria-describedby": "preference-help" } });
     vibe.onchange = () => patchVibe({ vibe_prompt: vibe.value });
-    const weight = slider({ value: p.vibe_weight, title: "Left: sharpest photo. Right: best match for the vibe text", onCommit: (v) => patchVibe({ vibe_weight: v }) });
-    const cameraRows = cameras.length < 2 ? [] : [el("div", { className: "label", textContent: "Camera clocks (seconds to add)" }),
+    const weight = slider({ value: p.vibe_weight, title: "Suggested photo priority: sharper photo on the left, closer description match on the right", onCommit: (v) => patchVibe({ vibe_weight: v }) });
+    weight.setAttribute("aria-describedby", "priority-help");
+    const cameraRows = cameras.length < 2 ? [] : [el("div", { className: "label", textContent: "Camera time adjustment (seconds)" }),
       ...cameras.map((c) => el("div", { className: "setting" },
         el("span", { textContent: `${c.camera_model || "Unknown camera"} (${c.photo_count})` }),
         stepper({ value: c.offset_seconds, step: 1, title: "Seconds to add to this camera's clock", onCommit: async (n) => {
@@ -425,7 +426,7 @@ async function showProject(id, jobId) {
             await loadChapters(p);
           } }));
         }
-        const renameBtn = el("button", { type: "button", className: "btn text", textContent: "rename" });
+        const renameBtn = el("button", { type: "button", className: "btn text", textContent: "Rename chapter" });
         renameBtn.onclick = () => {
           const input = el("input", { className: "input rename", value: c.user_title || c.title, attrs: { "aria-label": "Chapter title (blank resets)" } });
           let done = false;
@@ -455,10 +456,11 @@ async function showProject(id, jobId) {
       return li;
     };
     side.replaceChildren(
-      el("div", { className: "setting" }, el("span", { className: "label", textContent: "Gap (min)" }), gap),
-      el("label", { className: "setting" }, el("span", { className: "label", textContent: "Vibe" }), Object.assign(vibe, { className: "input" })),
-      el("div", { className: "setting" }, el("span", { className: "label", textContent: "Pick weighting" }), weight,
-        el("div", { className: "slider-ends" }, el("span", { textContent: "Sharp" }), el("span", { textContent: "Vibe" }))),
+      el("div", { className: "setting" }, el("span", { className: "label", textContent: "Chapter break (minutes)" }), gap, el("small", { className: "muted", textContent: "Chapters divide the shoot into sections based on time between photos." })),
+      el("label", { className: "setting" }, el("span", { className: "label", textContent: "What to look for (optional)" }), Object.assign(vibe, { className: "input" }), el("small", { id: "preference-help", className: "muted", textContent: "Describe the moment you want in each group of similar photos. Leave blank to suggest the sharpest photo." })),
+      el("div", { className: "setting" }, el("span", { className: "label", textContent: "Suggested photo priority" }), weight,
+        el("div", { className: "slider-ends" }, el("span", { textContent: "Sharper photo" }), el("span", { textContent: "Closer match" })),
+        el("small", { id: "priority-help", className: "muted", textContent: "Balance sharpness against your description. Applies when a description is entered; your Keep and Reject decisions stay unchanged." })),
       ...cameraRows,
       el("ul", { className: "chapters" }, entry(null, 0), ...chapters.map((c, i) => entry(c, i))));
   };
@@ -471,7 +473,7 @@ async function showProject(id, jobId) {
   };
   const indexBox = el("div", { className: "indexbox" });
   const indexMsg = el("p", { className: "error", attrs: { role: "alert" } });
-  const indexBtn = el("button", { type: "button", className: "btn primary", textContent: "Index photos", title: "Embed previews for search and duplicate groups" });
+  const indexBtn = el("button", { type: "button", className: "btn primary", textContent: "Analyze photos", title: "Prepare photo search and group similar photos. You can keep reviewing while this runs." });
   const trackIndex = async (indexJob, downloading = false) => {
     const bar = progressBar();
     const label = el("span", { className: "muted mono" });
@@ -483,7 +485,7 @@ async function showProject(id, jobId) {
       bar.set(j.done, j.total || 1, running);
       label.textContent = downloading
         ? downloadLabel(j)
-        : `Indexing ${j.status}: ${j.done}/${j.total}` + (j.failures.length ? `, ${j.failures.length} failed` : "");
+        : `Photo analysis ${j.status}: ${j.done}/${j.total}` + (j.failures.length ? `, ${j.failures.length} failed` : "");
       if (running) {
         indexTimer = setTimeout(() => poll().catch(showError), 500);
         return;
@@ -492,7 +494,7 @@ async function showProject(id, jobId) {
       if (j.status === "done" && !downloading) await loadGrid();
       indexBtn.disabled = false;
       indexBox.append(indexBtn);
-      if (j.status !== "done") indexMsg.textContent = j.failures.length ? j.failures[j.failures.length - 1].error : `${downloading ? "Download" : "Indexing"} ${j.status}.`;
+      if (j.status !== "done") indexMsg.textContent = j.failures.length ? j.failures[j.failures.length - 1].error : `${downloading ? "Download" : "Photo analysis"} ${j.status}.`;
       else if (downloading) await indexBtn.onclick(); // model is local now, carry on with indexing
     };
     await poll();
@@ -514,8 +516,8 @@ async function showProject(id, jobId) {
   };
   indexBox.append(indexBtn, indexMsg);
   const filterSeg = seg("Show photos by review state", [["all", "All"], ["unreviewed", "Unreviewed"], ["keep", "Kept"], ["reject", "Rejected"]], filter, (v) => { filter = v; renderGrid(); }, true);
-  const viewSeg = seg("Grouping", [["best", "Best", "Best: one tile per duplicate group"], ["all", "All", "All: every photo"]], view, (v) => { view = v; renderGrid(); }, true);
-  const advance = toggle("Auto-advance", autoAdvance, (on) => { autoAdvance = on; }, "Move to the next photo after P or X");
+  const viewSeg = seg("Similar-photo view", [["best", "Suggested", "Show one suggested photo per similar-photo group; this does not mark photos as kept"], ["all", "Every photo", "Show every photo, including similar shots"]], view, (v) => { view = v; renderGrid(); }, true);
+  const advance = toggle("Next after rating", autoAdvance, (on) => { autoAdvance = on; }, "Move to the next photo after marking Keep (P) or Reject (X)");
   barSlot.replaceChildren(searchWrap, filterSeg, viewSeg, advance);
   const exportMsg = el("div");
   const runExport = async (path, body, label) => {
@@ -542,8 +544,9 @@ async function showProject(id, jobId) {
   const dest = el("input");
   let perChapter = false;
   const exp = panel("Export",
-    el("div", { className: "row" }, el("button", { type: "button", className: "btn", textContent: "Write XMP sidecars", title: "Keep/reject/stars for Lightroom or darktable (RAW only)", onclick: () => runExport(`/projects/${id}/export/xmp`, null, "XMP export") })),
-    el("div", { className: "row" }, folderField("Destination folder for copy", "export", dest),
+    el("p", { className: "muted", textContent: "Save Keep, Reject and star ratings beside supported RAW files as XMP for Lightroom or darktable, or copy kept photos to another folder." }),
+    el("div", { className: "row" }, el("button", { type: "button", className: "btn", textContent: "Save ratings to XMP", title: "Keep/reject/stars for Lightroom or darktable (RAW only)", onclick: () => runExport(`/projects/${id}/export/xmp`, null, "XMP export") })),
+    el("div", { className: "row" }, folderField("Copy photos to", "export", dest),
       toggle("One folder per chapter", false, (on) => { perChapter = on; }),
       el("button", { type: "button", className: "btn", textContent: "Copy kept photos", onclick: () => {
         if (!dest.value.trim()) { toast("Choose a destination folder first.", "error"); return; }
@@ -734,14 +737,14 @@ function renderGrid() {
     const cell = el("div", { className: "cell" + (animate && i < 40 ? " enter" : "") + (view === "best" && !searchQ && expanded.has(p.group_id) && p.is_group_pick ? " pick" : ""), style: `--d:${i}`, attrs: { role: "option" } },
       frame,
       el("div", { className: "edge" }, el("i", { className: "dx" }), el("span", { className: "fno", textContent: `${i + 1}A` }), el("span", { className: "fname", textContent: p.filename }), el("span", { className: "mark" }), el("span", { className: "stars" })));
-    if (p.time_source === "mtime") frame.append(el("span", { className: "badge", title: "No EXIF time: using file modified time", textContent: "!" }));
+    if (p.time_source === "mtime") frame.append(el("span", { className: "badge", title: "Capture time unavailable: using the file’s last modified time", textContent: "!" }));
     const n = sizes.get(p.group_id);
     if (view === "best" && !searchQ && n > 1 && (p.is_group_pick || expanded.has(p.group_id))) {
       const open = expanded.has(p.group_id);
       frame.append(el("button", {
         type: "button",
         className: "count",
-        title: open ? "Collapse group" : `Expand group of ${n}`,
+        title: open ? "Show suggested photo only" : `Show all ${n} similar photos`,
         textContent: String(n),
         onclick: (ev) => {
           ev.stopPropagation();
@@ -860,7 +863,7 @@ async function promptModel() {
     start.disabled = false;
     if (j.status === "done") {
       heading.textContent = "AI model installed";
-      label.textContent = "Ready for indexing, search and duplicate grouping.";
+      label.textContent = "Ready to analyze photos, search and group similar shots.";
       start.hidden = true;
       later.textContent = "Done";
       later.focus();

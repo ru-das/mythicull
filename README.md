@@ -5,7 +5,7 @@ Local-first photo culling for wedding and event photographers. Import a shoot, l
 ## What it does
 - Imports a folder recursively. JPEG, and RAW through the embedded preview. RAW+JPEG pairs are treated as one photo.
 - Splits the shoot into story chapters by time gap (default 15 minutes). Chapters can be renamed; renames survive re-runs.
-- Groups near-duplicate bursts (within 10 s and similar image embedding) and suggests the sharpest frame in each group. An optional vibe text (for example "candid laughter") and a Sharp/Vibe slider in the sidebar blend sharpness with how well each frame matches the text when choosing the pick.
+- Groups near-duplicate bursts (within 10 s and similar image embedding) and suggests the sharpest frame in each group. The optional “What to look for” description (for example “candid laughter”) and “Suggested photo priority” slider balance sharpness with how well each frame matches the description.
 - Plain-English search ("people dancing") ranked with image embeddings.
 - Keep / reject / star review with filters, counters and undo.
 - Exports XMP sidecars (stars and colour label) for RAW files, or copies the kept photos to a new folder.
@@ -27,7 +27,7 @@ pip install -r requirements.txt
 uvicorn mythicull.main:app --port 8000
 ```
 
-Open http://localhost:8000. The first time you click Index photos, the app shows a one-time model download with progress. The model is saved in `~/.mythicull/models/` (inside `MYTHICULL_DATA_DIR`) and loaded from there, so it works offline afterwards. A GPU is strongly recommended: indexing took about 32 s per photo on a CPU in our test and about 1 s or less on a GPU. Browsing and rating work without the model and before indexing finishes.
+Open http://localhost:8000. The first time you click Analyze photos, the app shows a one-time model download with progress. The model is saved in `~/.mythicull/models/` (inside `MYTHICULL_DATA_DIR`) and loaded from there, so it works offline afterwards. A GPU is strongly recommended: indexing took about 32 s per photo on a CPU in our test and about 1 s or less on a GPU. Browsing and rating work without the model and before indexing finishes.
 
 Environment variables:
 - `MYTHICULL_DATA_DIR`: where projects, thumbnails and embeddings live (default `~/.mythicull`). Never inside a photo folder.
@@ -35,8 +35,8 @@ Environment variables:
 
 ## Usage
 1. Create a project: enter a name and use **Choose folder…** to select the photo folder. Import runs in the background.
-2. Click **Index photos**. Indexing can be cancelled and resumes where it stopped. Chapters and Best/All grouping appear when it finishes.
-3. Cull. Best view shows one pick per duplicate group; click the count badge to expand a group.
+2. Click **Analyze photos**. Indexing can be cancelled and resumes where it stopped. Chapters and Suggested/Every photo views appear when it finishes.
+3. Cull. Suggested view shows one suggestion per group of similar photos; click the count badge to expand a group.
 4. The sun/moon button in the top bar switches between dark and light mode. Dark is the default and your choice is remembered in the browser.
 5. Use the **Export** panel: write XMP sidecars, or choose a destination folder and copy kept photos (optionally one folder per chapter).
 
