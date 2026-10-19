@@ -79,6 +79,8 @@ Target: Day 1 finishes M0 to M4. Day 2 finishes M5 to M8.
 - [x] **M9.1 In-app model download.** Model saved in `<data_dir>/models/`, visible download step with byte progress in the UI, marker file marks a complete download, load from the local path only (no hub access after).
   Done when: `/api/model` tests pass. Real download not run here (no network to HF).
 
+- [x] **M9.2 Startup model prompt and accurate download progress.** Detect locally on open, offer download or defer, reconnect to active download, use remote file sizes and count each file once.
+
 ## UI
 - [x] **U5 Animation cleanup.** Remove layout transitions from segment indicators, progress fills and project-row hover; preserve feedback with transforms.
 - [x] **U4 Native folder selection.** Choose import and copy-export folders through a desktop dialog; handle cancellation, unavailable desktop support and local-only access. API tests and mocked-dialog browser flows pass; real OS desktop smoke checks remain open.

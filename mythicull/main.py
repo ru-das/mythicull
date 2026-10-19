@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 import json
 import uuid
+import threading
 from datetime import datetime, timezone
 
 from mythicull import config, db, embed, export, folders, grouping, ingest, jobs, search
@@ -510,16 +511,31 @@ class HealthOut(BaseModel):
 class ModelOut(BaseModel):
     ready: bool
     path: str
+    job_id: str | None = None
+
+
+_model_download_lock = threading.Lock()
+
+
+def _active_model_download() -> str | None:
+    conn = db.connect()
+    try:
+        row = conn.execute("SELECT id FROM jobs WHERE kind = ? AND status IN (?, ?) ORDER BY created_at DESC LIMIT 1",
+                           ("model_download", *jobs.ACTIVE)).fetchone()
+        return row["id"] if row else None
+    finally:
+        conn.close()
 
 
 @app.get("/api/model")
 def model_status() -> ModelOut:
-    return ModelOut(ready=embed.model_ready(), path=str(config.model_dir()))
+    return ModelOut(ready=embed.model_ready(), path=str(config.model_dir()), job_id=_active_model_download())
 
 
 @app.post("/api/model/download")
 def download_model() -> JobStartedOut:
-    return JobStartedOut(job_id=jobs.start("model_download", embed.download_model))
+    with _model_download_lock:
+        return JobStartedOut(job_id=_active_model_download() or jobs.start("model_download", embed.download_model))
 
 
 @app.get("/api/health")

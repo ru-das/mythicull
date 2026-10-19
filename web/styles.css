@@ -272,3 +272,11 @@ main { padding: 28px 24px 60px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
 }
+
+/* Model setup stays available independently of the current project. */
+.model-dialog { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(0, 0, 0, .72); }
+.model-card { width: min(100%, 520px); max-height: calc(100dvh - 40px); overflow: auto; padding: clamp(20px, 5vw, 32px); border-radius: 12px; background: var(--panel); color: var(--ink); }
+.model-card h2 { margin: 0 0 16px; font-family: var(--display); font-size: 28px; font-weight: 400; }
+.model-card p { line-height: 1.6; overflow-wrap: anywhere; }
+.model-progress { font-size: 12px; }
+.model-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }

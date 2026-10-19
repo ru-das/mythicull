@@ -31,25 +31,53 @@ def model_ready() -> bool:
 
 def download_model(ctx: jobs.JobContext) -> None:
     """Job body: fetch the model once into the data dir. Progress is in bytes. Resumes after an interruption."""
-    from huggingface_hub import HfApi, snapshot_download
+    from huggingface_hub import HfApi, hf_hub_download
     from tqdm.auto import tqdm
 
     if model_ready():
         return
+    ctx.stage("checking download size")
+    info = HfApi().model_info(config.MODEL_ID, files_metadata=True)
+    files = info.siblings
+    if not files or any(f.size is None for f in files):
+        raise RuntimeError("Hugging Face did not provide the model file sizes. Please retry.")
+    ctx.set_total(sum(f.size for f in files))
+    d = config.model_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    completed = 0
+    reported = 0
 
     class _Bar(tqdm):
         def update(self, n: float | None = 1) -> bool | None:
-            if self.unit == "B" and n:  # byte bars only, skip the file-count bar
-                ctx.advance(int(n))
-            return super().update(n)
+            nonlocal reported
+            if ctx.cancelled:
+                raise InterruptedError("Model download cancelled; retry to resume.")
+            result = super().update(n)
+            # Count logical file bytes, including resumed bytes, never transfer/retry bytes.
+            if self.unit == "B" and "transfer" not in str(self.desc).lower():
+                current = completed + min(file.size, int(self.n))
+                if current > reported:
+                    ctx.advance(current - reported)
+                    reported = current
+            return result
 
     ctx.stage("downloading")
-    info = HfApi().model_info(config.MODEL_ID, files_metadata=True)
-    ctx.set_total(sum(s.size or 0 for s in info.siblings))
-    d = config.model_dir()
-    d.mkdir(parents=True, exist_ok=True)
-    snapshot_download(config.MODEL_ID, local_dir=d, tqdm_class=_Bar)
-    (d / _READY_MARKER).write_text("ok")
+    for file in files:
+        if ctx.cancelled:
+            return
+        try:
+            hf_hub_download(config.MODEL_ID, filename=file.rfilename, revision=info.sha,
+                            local_dir=d, tqdm_class=_Bar)
+        except InterruptedError:
+            if ctx.cancelled:
+                return
+            raise
+        completed += file.size
+        if completed > reported:  # Cached files have no progress bar.
+            ctx.advance(completed - reported)
+            reported = completed
+    if not ctx.cancelled:
+        (d / _READY_MARKER).write_text("ok")
 
 
 class GemmaEmbedder:

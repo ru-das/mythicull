@@ -472,7 +472,6 @@ async function showProject(id, jobId) {
   const indexBox = el("div", { className: "indexbox" });
   const indexMsg = el("p", { className: "error", attrs: { role: "alert" } });
   const indexBtn = el("button", { type: "button", className: "btn primary", textContent: "Index photos", title: "Embed previews for search and duplicate groups" });
-  const mb = (n) => `${Math.round(n / 1048576)} MB`;
   const trackIndex = async (indexJob, downloading = false) => {
     const bar = progressBar();
     const label = el("span", { className: "muted mono" });
@@ -483,7 +482,7 @@ async function showProject(id, jobId) {
       const running = ["queued", "running"].includes(j.status);
       bar.set(j.done, j.total || 1, running);
       label.textContent = downloading
-        ? `Downloading search model (one time) ${j.status}: ${mb(j.done)}/${mb(j.total)}`
+        ? downloadLabel(j)
         : `Indexing ${j.status}: ${j.done}/${j.total}` + (j.failures.length ? `, ${j.failures.length} failed` : "");
       if (running) {
         indexTimer = setTimeout(() => poll().catch(showError), 500);
@@ -502,7 +501,11 @@ async function showProject(id, jobId) {
     indexBtn.disabled = true;
     indexMsg.textContent = "";
     try {
-      if (!(await api("/model")).ready) return await trackIndex((await api("/model/download", { method: "POST" })).job_id, true);
+      if (!(await api("/model")).ready) {
+        indexBtn.disabled = false;
+        await promptModel();
+        return;
+      }
       await trackIndex((await api(`/projects/${id}/index`, { method: "POST" })).job_id);
     } catch (e) {
       indexMsg.textContent = e.message;
@@ -764,6 +767,7 @@ function showGrid(grid, list) {
 }
 
 document.addEventListener("keydown", (e) => {
+  if (document.querySelector(".model-dialog")) return;
   const t = e.target;
   const box = document.getElementById("search");
   if (e.key === "/" && box && !t.matches("input, textarea")) {
@@ -819,3 +823,70 @@ function route() {
 
 window.addEventListener("hashchange", route);
 route();
+
+const mb = (n) => `${(n / 1000000).toFixed(1)} MB`;
+function downloadLabel(j) {
+  return j.total ? `Model files: ${mb(j.done)} / ${mb(j.total)} · ${j.status}` : "Checking download size with Hugging Face…";
+}
+
+async function promptModel() {
+  if (document.querySelector(".model-dialog")) return;
+  const status = await api("/model");
+  if (status.ready) return;
+  const previous = document.activeElement;
+  const heading = el("h2", { id: "model-heading", textContent: "Download the AI model?" });
+  const message = el("p", { className: "muted", textContent: "Search and duplicate grouping need a one-time download from Hugging Face. After that, the model works offline. You can browse and rate photos without it." });
+  const progress = progressBar();
+  progress.root.hidden = true;
+  progress.root.setAttribute("aria-label", "Model download");
+  const label = el("p", { className: "model-progress mono", attrs: { role: "status" } });
+  const error = el("p", { className: "error", attrs: { role: "alert" } });
+  const start = el("button", { type: "button", className: "btn primary", textContent: "Download model" });
+  const later = el("button", { type: "button", className: "btn", textContent: "Not now" });
+  const card = el("section", { className: "model-card", attrs: { role: "dialog", "aria-modal": "true", "aria-labelledby": "model-heading" } }, heading, message, progress.root, label, error, el("div", { className: "model-actions" }, start, later));
+  const backdrop = el("div", { className: "model-dialog" }, card);
+  let timer;
+  const close = () => { clearTimeout(timer); backdrop.remove(); if (previous?.isConnected) previous.focus(); };
+  later.onclick = close;
+  const track = async (id) => {
+    start.disabled = true;
+    progress.root.hidden = false;
+    later.textContent = "Continue browsing";
+    const j = await api(`/jobs/${id}`);
+    const running = ["queued", "running"].includes(j.status);
+    progress.set(j.done, j.total, running);
+    label.textContent = downloadLabel(j);
+    if (running) { timer = setTimeout(() => track(id).catch(failed), 500); return; }
+    start.disabled = false;
+    if (j.status === "done") {
+      heading.textContent = "AI model installed";
+      label.textContent = "Ready for indexing, search and duplicate grouping.";
+      start.hidden = true;
+      later.textContent = "Done";
+      later.focus();
+    } else {
+      error.textContent = j.failures.at(-1)?.error || `Download ${j.status}. Retry when you’re ready.`;
+      start.textContent = "Retry download";
+    }
+  };
+  const failed = (e) => { error.textContent = e.message; start.disabled = false; start.textContent = "Retry download"; };
+  start.onclick = async () => {
+    start.disabled = true;
+    error.textContent = "";
+    label.textContent = "Checking download size with Hugging Face…";
+    try { await track((await api("/model/download", { method: "POST" })).job_id); } catch (e) { failed(e); }
+  };
+  backdrop.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === "Escape") { e.preventDefault(); close(); }
+    if (e.key === "Tab") {
+      const buttons = [...card.querySelectorAll("button")].filter(b => !b.disabled && !b.hidden);
+      const next = (buttons.indexOf(document.activeElement) + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
+      e.preventDefault(); buttons[next].focus();
+    }
+  };
+  document.body.append(backdrop);
+  start.focus();
+  if (status.job_id) { later.focus(); await track(status.job_id).catch(failed); }
+}
+promptModel().catch(showError);
